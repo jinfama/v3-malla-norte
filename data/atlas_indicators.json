@@ -1,0 +1,359 @@
+{
+  "schema_version": 3,
+  "n_indicators": 43,
+  "indicators": [
+    {
+      "id": "pob",
+      "name": "Población total",
+      "unit": "habitantes",
+      "category": "poblacion",
+      "source_file": "poblacion.json"
+    },
+    {
+      "id": "pp",
+      "name": "Precipitación anual",
+      "unit": "mm",
+      "category": "clima",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "t_average",
+      "name": "Temperatura media anual",
+      "unit": "°C",
+      "category": "clima",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "spei",
+      "name": "SPEI (sequía)",
+      "unit": "índice",
+      "category": "clima",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "grow_period_pp",
+      "name": "Precipitación período vegetativo (Apr-Oct)",
+      "unit": "mm",
+      "category": "clima",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "frost_days",
+      "name": "Días de helada",
+      "unit": "días/año",
+      "category": "clima",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "dry_hot_climate",
+      "name": "Clima Köppen seco-cálido",
+      "unit": "0/1",
+      "category": "clima",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "dry_cold_climate",
+      "name": "Clima Köppen seco-frío",
+      "unit": "0/1",
+      "category": "clima",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "oceanic",
+      "name": "Clima oceánico",
+      "unit": "0/1",
+      "category": "clima",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "mediterranean",
+      "name": "Clima mediterráneo",
+      "unit": "0/1",
+      "category": "clima",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "to_coast_km",
+      "name": "Distancia a la costa",
+      "unit": "km",
+      "category": "geografia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "to_mad_km",
+      "name": "Distancia a Madrid",
+      "unit": "km",
+      "category": "geografia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "to_prov_cap_km",
+      "name": "Distancia a la capital de provincia",
+      "unit": "km",
+      "category": "geografia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "altitude",
+      "name": "Altitud",
+      "unit": "m",
+      "category": "geografia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "ruggedness",
+      "name": "Rugosidad terreno",
+      "unit": "TRI",
+      "category": "geografia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "area",
+      "name": "Área municipal",
+      "unit": "km²",
+      "category": "geografia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "dryland",
+      "name": "Secano",
+      "unit": "ha",
+      "category": "usos_suelo",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "pastures",
+      "name": "Pastos",
+      "unit": "ha",
+      "category": "usos_suelo",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "irrigated",
+      "name": "Regadío",
+      "unit": "ha",
+      "category": "usos_suelo",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "cultivated_area",
+      "name": "Superficie cultivada total",
+      "unit": "ha",
+      "category": "usos_suelo",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "irrig_neighb",
+      "name": "Regadío de munis vecinos",
+      "unit": "ha",
+      "category": "usos_suelo",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "cultivated_area_neighb",
+      "name": "Cultivado vecinos",
+      "unit": "ha",
+      "category": "usos_suelo",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "Reservoir_area",
+      "name": "Área embalses",
+      "unit": "m²",
+      "category": "hidrologia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "Reservoir_volume",
+      "name": "Volumen total embalses",
+      "unit": "hm³",
+      "category": "hidrologia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "Usable_reservoir_volume",
+      "name": "Volumen útil embalses",
+      "unit": "hm³",
+      "category": "hidrologia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "Vol_Irrigation",
+      "name": "Volumen embalse uso regadío",
+      "unit": "hm³",
+      "category": "hidrologia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "Vol_Electricity",
+      "name": "Volumen embalse uso eléctrico",
+      "unit": "hm³",
+      "category": "hidrologia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "Vol_Supply",
+      "name": "Volumen embalse uso abastecimiento",
+      "unit": "hm³",
+      "category": "hidrologia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "Dist_main_rivers",
+      "name": "Distancia ríos principales",
+      "unit": "km",
+      "category": "hidrologia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "Dist_all_rivers",
+      "name": "Distancia cualquier río",
+      "unit": "km",
+      "category": "hidrologia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "highspeedstation_distance",
+      "name": "Distancia AVE",
+      "unit": "km",
+      "category": "transporte",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "airport_distance",
+      "name": "Distancia aeropuerto AENA",
+      "unit": "km",
+      "category": "transporte",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "distance_pop_5000",
+      "name": "Distancia muni > 5 000 hab",
+      "unit": "km",
+      "category": "demografia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "distance_pop_10000",
+      "name": "Distancia muni > 10 000 hab",
+      "unit": "km",
+      "category": "demografia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "decade_coloniz_in_municip",
+      "name": "Década pueblo de colonización (Albertus 2023)",
+      "unit": "década",
+      "category": "demografia",
+      "type": "numeric",
+      "source_file": "historeco.json"
+    },
+    {
+      "id": "cropland_ha",
+      "name": "Cultivos (HYDE+LUH2)",
+      "unit": "ha",
+      "category": "usos_suelo",
+      "type": "numeric",
+      "source_file": "usos_suelo.json"
+    },
+    {
+      "id": "pasture_ha",
+      "name": "Pastos (HYDE+LUH2)",
+      "unit": "ha",
+      "category": "usos_suelo",
+      "type": "numeric",
+      "source_file": "usos_suelo.json"
+    },
+    {
+      "id": "urban_ha",
+      "name": "Urbano (HYDE+LUH2)",
+      "unit": "ha",
+      "category": "usos_suelo",
+      "type": "numeric",
+      "source_file": "usos_suelo.json"
+    },
+    {
+      "id": "forest_ha",
+      "name": "Bosque (LUH2)",
+      "unit": "ha",
+      "category": "usos_suelo",
+      "type": "numeric",
+      "source_file": "usos_suelo.json"
+    },
+    {
+      "id": "other_ha",
+      "name": "Otros usos",
+      "unit": "ha",
+      "category": "usos_suelo",
+      "type": "numeric",
+      "source_file": "usos_suelo.json"
+    },
+    {
+      "id": "cropland_share_pct",
+      "name": "Cultivos (% del muni)",
+      "unit": "%",
+      "category": "usos_suelo",
+      "type": "numeric",
+      "source_file": "usos_suelo.json"
+    },
+    {
+      "id": "urban_share_pct",
+      "name": "Urbano (% del muni)",
+      "unit": "%",
+      "category": "usos_suelo",
+      "type": "numeric",
+      "source_file": "usos_suelo.json"
+    },
+    {
+      "id": "dist_calzada_km",
+      "name": "Distancia a calzada romana",
+      "unit": "km",
+      "category": "transporte_historico",
+      "type": "numeric",
+      "source_file": "calzada.json"
+    }
+  ],
+  "categories": [
+    "clima",
+    "demografia",
+    "geografia",
+    "hidrologia",
+    "poblacion",
+    "transporte",
+    "transporte_historico",
+    "usos_suelo"
+  ]
+}
