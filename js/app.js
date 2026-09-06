@@ -45,18 +45,58 @@ const state = {
 let CENSUS = [];
 let YEAR_MIN = 1900, YEAR_MAX = 2025;
 
-// Paleta secuencial estilo Opportunity Atlas:
-// quintil bajo = beige tenue (visible sobre el azul-gris del mar),
-// quintil alto = rojo profundo (las ciudades destacan).
-const POP_COLORS = ["#fbe8c2", "#fbc887", "#f59055", "#d44e2a", "#7d1f0d"];
-const CAMBIO_COLORS = ["#7d1f0d", "#b35a32", "#e9b694", "#f2efe9", "#a8c6dd", "#5781a8", "#1f3a5f"];
-const DISTANCE_COLORS = ["#14836f", "#79b96c", "#f0d28a", "#e37a3f", "#8d2418"];
-const CLIMATE_PRECIP_COLORS = ["#f0e6c9", "#d7bf78", "#a9c481", "#65adb1", "#2d7fb8", "#0c4f82"];
-const CLIMATE_TEMP_COLORS = ["#31688e", "#6ba8c4", "#d8d8bd", "#efb466", "#c85b3e", "#7d1f1a"];
-const CLIMATE_FROST_COLORS = ["#f3e8cf", "#d7d6bf", "#a4c8d1", "#659dc4", "#346aa0", "#343b64"];
-const CLIMATE_DIVERGING_COLORS = ["#94331f", "#d08b57", "#ece8d8", "#9cc8d9", "#2d6f9f"];
-const LINE_COLORS = ["#c0392b", "#2b5797", "#2d8659", "#7d4ba0", "#c97f1c", "#475569", "#9b1d1d", "#0e7490"];
-const NO_DATA_COLOR = "#e4e8ec";
+// ─────────────────────────────────────────────────────────────────────────
+// ESCALAS DE DATOS DEL MAPA — revisadas el 6 de septiembre de 2026 por
+// encargo del autor (ver «Paleta y cromo» en CLAUDE.md). No son decoracion:
+// son la codificacion. Tres familias, todas sacadas de la portada aprobada
+// «La Espana que se vacia» (papel crema, pigmento sombra/sanguina, ceniza):
+//
+//   SEQ_WARM   cantidades  — crema → ocre → tostado → sombra → umbria
+//   SEQ_COOL   distancia, agua, frio — crema → ceniza → ceniza oscura
+//   DIVERGING  las dos anteriores encontrandose sobre el papel
+//
+// Las tres llevan escalera de L* pareja (92 → 28 en pasos de ~11) para que
+// 8.205 municipios se separen de verdad; medido con dE2000 y con simulacion
+// de deuteranopia y protanopia. Ninguna repite el acento del cromo
+// (--accent #b04528): la distancia minima a el es 8,7 dE.
+const SEQ_WARM = ["#f4e8c6", "#eacb96", "#e0a967", "#d5823d", "#b16737", "#8c4e2f", "#653524"];
+const SEQ_COOL = ["#f7e6c6", "#bfd3ca", "#9ab9bd", "#799ca2", "#588088", "#38656f", "#114855"];
+const DIVERGING_COLORS = ["#114855", "#588088", "#9ab9bd", "#ebdec9", "#e0a967", "#b16737", "#653524"];
+
+// Alias por indicador (los nombres viejos siguen valiendo para quien importe).
+const POP_COLORS = SEQ_WARM;                              // cantidad, densidad, superficie…
+const CAMBIO_COLORS = DIVERGING_COLORS;                   // perdida (ceniza) ↔ ganancia (sanguina)
+const DISTANCE_COLORS = SEQ_COOL;                         // cerca (crema) → lejos (ceniza oscura)
+const CLIMATE_PRECIP_COLORS = SEQ_COOL;                   // seco (crema) → humedo (ceniza)
+const CLIMATE_TEMP_COLORS = DIVERGING_COLORS;             // frio (ceniza) → calido (sanguina)
+const CLIMATE_FROST_COLORS = SEQ_COOL;                    // sin heladas (crema) → muchas (ceniza)
+const CLIMATE_DIVERGING_COLORS = DIVERGING_COLORS.slice().reverse(); // SPEI: seco = calido
+
+// Series de los graficos. Ocho colores categoricos: minima distancia mutua
+// 15,1 dE2000 en vision tricromatica, 14,1 en deuteranopia y 15,0 en
+// protanopia, y >= 3,05:1 de contraste WCAG sobre el papel --cal.
+const LINE_COLORS = ["#a8432a", "#4e5c62", "#9e8e38", "#1d3b79", "#789485", "#6d252a", "#4d689c", "#4491e0"];
+
+// Categorias que NO son valores. Tienen que distinguirse del degradado, del
+// lienzo del mapa y entre si:
+//   NO_DATA  vs lienzo 13,4 dE · vs ZERO 13,6 dE · vs toda rampa >= 10,2 dE
+//   ZERO     vs lienzo  8,1 dE · vs la clase mas clara de la rampa 7,0 dE
+const NO_DATA_COLOR = "#bfbbb2";   // «sin dato» dentro de un coropleto activo
+const ZERO_COLOR = "#faf5e6";      // «cero / nada de esto aqui», clase propia
+const LAND_BASE_COLOR = "#f1e9d7"; // tierra sin indicador (modo redes): papel de la portada
+
+// k colores equiespaciados a lo largo de una rampa de anclajes. t0 > 0 arranca
+// mas oscuro, que es lo que hace falta cuando hay clase «cero» debajo.
+function rampColors(stops, k, t0 = 0) {
+    if (k <= 1) return [stops[stops.length - 1]];
+    const sc = d3.scaleLinear()
+        .domain(stops.map((_, i) => i / (stops.length - 1)))
+        .range(stops);
+    return d3.range(k).map(i => d3.color(sc(t0 + (1 - t0) * (i / (k - 1)))).formatHex());
+}
+
+// Cortes por cuantil de la escala clasificada genérica: hasta 7 clases.
+const CLASS_QUANTILES = [0.15, 0.32, 0.49, 0.64, 0.78, 0.91];
 const CLIMATE_MONTHLY_SOURCE = "clima_mensual_andalucia.json";
 const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
@@ -83,7 +123,7 @@ const DERIVED_INDICATORS = {
 
 // Geo overlays (lines, points). Belong to category 'transporte'.
 const OVERLAY_INDICATORS = [
-    { id: 'calzadas',    name: 'Calzadas romanas',     desc: 'Red viaria romana en Hispania (ss. I a.C. - V d.C.).', file: 'data/calzadas_romanas.geojson', style: 'ov-roman', temporal: false },
+    { id: 'calzadas',    name: 'Calzadas romanas',     desc: 'Red viaria romana (ss. I a.C. - V d.C.), recortada a Espana. El origen cubre Hispania entera; los 197 tramos que no tocan territorio espanol se han retirado y los que lo cruzan conservan solo su parte espanola.', file: 'data/calzadas_romanas.geojson', style: 'ov-roman', temporal: false },
     { id: 'fc_iberico',  name: 'Ferrocarril iberico',  desc: 'Red de via iberica historica.',                         file: 'data/ferrocarril_iberico.geojson',  style: 'ov-rail-iberian', temporal: true, startYear: 1855 },
     { id: 'fc_estrecho', name: 'Ferrocarril estrecho', desc: 'Red de via estrecha historica.',                         file: 'data/ferrocarril_estrecho.geojson', style: 'ov-rail-narrow', temporal: true, startYear: 1880 },
     { id: 'fc_ave',      name: 'AVE / Alta velocidad', desc: 'Red ferroviaria de alta velocidad.',                     file: 'data/ferrocarril_ave.geojson',     style: 'ov-rail-hsr', temporal: true, startYear: 1992 },
@@ -728,7 +768,7 @@ async function renderMapProgressive() {
             .attr("d", pathGen)
             .attr("data-ine", d => d.properties.ine)
             .attr("fill", d => {
-                if (!useChoropleth) return NO_DATA_COLOR;
+                if (!useChoropleth) return LAND_BASE_COLOR;
                 const v = valueForFeature(d, layer, currentYear(), groupedValues);
                 return v == null ? NO_DATA_COLOR : colorFn(v);
             })
@@ -749,7 +789,7 @@ async function renderMapProgressive() {
         .attr("class", "provincia-fill")
         .attr("d", pathGen)
         .attr("data-code", d => d.properties.code)
-        .attr("fill", NO_DATA_COLOR)
+        .attr("fill", LAND_BASE_COLOR)
         .on("mouseover", onMuniHover)
         .on("mouseleave", onMuniLeave);
 
@@ -760,7 +800,7 @@ async function renderMapProgressive() {
         .attr("class", "ccaa-fill")
         .attr("d", pathGen)
         .attr("data-code", d => d.properties.code)
-        .attr("fill", NO_DATA_COLOR)
+        .attr("fill", LAND_BASE_COLOR)
         .on("mouseover", onMuniHover)
         .on("mouseleave", onMuniLeave);
 
@@ -1820,7 +1860,7 @@ function paintMunicipios() {
     map.classed("route-mode", routeMode);
     map.classed("climate-mode", state.category === "clima");
     applyVisualModeClass();
-    map.selectAll("path.municipio,path.provincia-fill,path.ccaa-fill").attr("fill", NO_DATA_COLOR);
+    map.selectAll("path.municipio,path.provincia-fill,path.ccaa-fill").attr("fill", LAND_BASE_COLOR);
 
     if (isPaintableIndicator(state.indicator) && cat?.type !== 'placeholder') {
         const colorFn = colorScaleFor(state.indicator);
@@ -1962,10 +2002,10 @@ let _relief3dRenderer = null;
 function climateScaleSpec(layer) {
     const id = (layer || "").toLowerCase();
     const binary = {
-        dry_hot_climate: { yes: "#c85b3e", label: "Seco-calido" },
-        dry_cold_climate: { yes: "#656aa0", label: "Seco-frio" },
-        oceanic: { yes: "#2f8f9a", label: "Oceanico" },
-        mediterranean: { yes: "#d2954b", label: "Mediterraneo" },
+        dry_hot_climate: { yes: "#b16737", label: "Seco-calido" },
+        dry_cold_climate: { yes: "#588088", label: "Seco-frio" },
+        oceanic: { yes: "#38656f", label: "Oceanico" },
+        mediterranean: { yes: "#d5823d", label: "Mediterraneo" },
     };
     if (binary[id]) return { kind: "binary", ...binary[id] };
     if (id === "pp" || id === "grow_period_pp") return { kind: "continuous", colors: CLIMATE_PRECIP_COLORS };
@@ -1977,7 +2017,7 @@ function climateScaleSpec(layer) {
 
 function buildClimateScale(layer, values, spec) {
     if (spec.kind === "binary") {
-        const off = "#eef2ef";
+        const off = ZERO_COLOR;   // «no» = papel vacio, el mismo idioma que la clase cero
         const fn = v => Number.isFinite(v) && v >= 0.5 ? spec.yes : off;
         return {
             kind: "binary",
@@ -2004,10 +2044,12 @@ function buildClimateScale(layer, values, spec) {
             Math.abs(d3.quantile(pos, 0.97) ?? d3.max(sorted) ?? 0),
             0.1
         );
-        const fn = d3.scaleLinear()
-            .domain([-absMax, -absMax / 2, 0, absMax / 2, absMax])
-            .range(spec.colors)
-            .clamp(true);
+        // El dominio tiene que tener tantos puntos como colores: con 5 puntos y
+        // 7 colores d3 se quedaba con los 5 primeros y el extremo no se usaba nunca.
+        const nD = spec.colors.length;
+        const domD = d3.range(nD).map(i => -absMax + (2 * absMax * i) / (nD - 1));
+        const scD = d3.scaleLinear().domain(domD).range(spec.colors).clamp(true);
+        const fn = v => (v == null || !Number.isFinite(v)) ? NO_DATA_COLOR : scD(v);
         return { kind: "climate-diverging", fn, breaks: { absMax }, signed: true, values, colors: spec.colors };
     }
 
@@ -2016,10 +2058,8 @@ function buildClimateScale(layer, values, spec) {
     for (let i = 1; i < domain.length; i++) {
         if (domain[i] <= domain[i - 1]) domain[i] = domain[i - 1] + 1e-6;
     }
-    const fn = d3.scaleLinear()
-        .domain(domain)
-        .range(spec.colors)
-        .clamp(true);
+    const scC = d3.scaleLinear().domain(domain).range(spec.colors).clamp(true);
+    const fn = v => (v == null || !Number.isFinite(v)) ? NO_DATA_COLOR : scC(v);
     return {
         kind: "continuous",
         fn,
@@ -2036,36 +2076,72 @@ function buildClimateScale(layer, values, spec) {
     };
 }
 
-function buildDistanceScale(values) {
-    const sorted = values
-        .filter(v => Number.isFinite(v))
-        .slice()
-        .sort((a, b) => a - b);
-    if (!sorted.length) return { kind: "empty", fn: () => NO_DATA_COLOR, breaks: null, signed: false, values };
-    const breaks = {
-        q20: d3.quantile(sorted, 0.2) ?? sorted[0],
-        q40: d3.quantile(sorted, 0.4) ?? sorted[0],
-        q60: d3.quantile(sorted, 0.6) ?? sorted[sorted.length - 1],
-        q80: d3.quantile(sorted, 0.8) ?? sorted[sorted.length - 1],
-    };
+// Escala clasificada generica. Sustituye a los cuantiles fijos q50/q75/q90/q97,
+// que metian medio pais en un solo color y, cuando un indicador tenia muchos
+// ceros (Vol_Irrigation: 98 % de las unidades a cero), empataban todos los
+// cortes y pintaban el mapa ENTERO del color mas oscuro. Aqui:
+//   · «cero» sale de la rampa y se convierte en clase propia cuando de verdad
+//     significa «nada de esto aqui» (sin negativos y >= 4 % de las unidades);
+//   · los cortes empatados se colapsan: se pierde una clase, no se falsea;
+//   · los colores se muestrean de la rampa segun cuantas clases sobrevivan.
+function buildClassedScale(values, stops, kindName) {
+    const finite = values.filter(v => Number.isFinite(v));
+    if (!finite.length) return { kind: "empty", fn: () => NO_DATA_COLOR, breaks: null, signed: false, values };
+
+    const nZero = finite.reduce((n, v) => n + (v === 0 ? 1 : 0), 0);
+    const hasNeg = finite.some(v => v < 0);
+    const zeroClass = !hasNeg && nZero / finite.length >= 0.04;
+    const base = (zeroClass ? finite.filter(v => v > 0) : finite).slice().sort((a, b) => a - b);
+
+    if (!base.length) {
+        const only = zeroClass ? ZERO_COLOR : stops[0];
+        return {
+            kind: kindName,
+            fn: v => (v == null || !Number.isFinite(v)) ? NO_DATA_COLOR : only,
+            breaks: { edges: [], zeroClass, min: 0, max: 0 },
+            signed: false, values, colors: [only],
+        };
+    }
+
+    const edges = [];
+    for (const p of CLASS_QUANTILES) {
+        const b = d3.quantile(base, p);
+        if (b == null || !Number.isFinite(b)) continue;
+        if (!edges.length || b > edges[edges.length - 1]) edges.push(b);
+    }
+    const colors = rampColors(stops, edges.length + 1, zeroClass ? 0.14 : 0);
     const fn = v => {
         if (v == null || !Number.isFinite(v)) return NO_DATA_COLOR;
-        if (v < breaks.q20) return DISTANCE_COLORS[0];
-        if (v < breaks.q40) return DISTANCE_COLORS[1];
-        if (v < breaks.q60) return DISTANCE_COLORS[2];
-        if (v < breaks.q80) return DISTANCE_COLORS[3];
-        return DISTANCE_COLORS[4];
+        if (zeroClass && v <= 0) return ZERO_COLOR;
+        for (let i = 0; i < edges.length; i++) if (v < edges[i]) return colors[i];
+        return colors[colors.length - 1];
     };
-    return { kind: "distance", fn, breaks, signed: false, values, colors: DISTANCE_COLORS };
+    return {
+        kind: kindName, fn, signed: false, values, colors,
+        breaks: { edges, zeroClass, min: base[0], max: base[base.length - 1] },
+    };
 }
+
+function buildDistanceScale(values) {
+    return buildClassedScale(values, SEQ_COOL, "distance");
+}
+
+// El cambio porcentual es un cociente: −100 % esta acotado y +infinito no.
+// Pintado sobre el porcentaje crudo, el 20 % de los municipios se quedaba
+// pegado a los dos extremos de la rampa. Se pinta sobre log10(P_t / P_1900),
+// que es simetrico, y con ±log10(20) solo satura el 1,6 % (2011).
+const CAMBIO_LOG_RANGE = Math.log10(20);   // ÷20 … ×20 la poblacion de 1900
 
 function _computeScaleForLayer(layer) {
     if (layer === "cambio") {
-        const fn = d3.scaleLinear()
-            .domain([-80, -40, -10, 0, 50, 200, 500])
-            .range(CAMBIO_COLORS)
-            .clamp(true);
-        return { kind: 'cambio', fn, breaks: null, signed: true, values: null };
+        const R = CAMBIO_LOG_RANGE;
+        const n = CAMBIO_COLORS.length;
+        const dom = d3.range(n).map(i => -R + (2 * R * i) / (n - 1));
+        const sc = d3.scaleLinear().domain(dom).range(CAMBIO_COLORS).clamp(true);
+        const fn = v => (v == null || !Number.isFinite(v))
+            ? NO_DATA_COLOR
+            : sc(Math.log10(Math.max(1e-4, 1 + v / 100)));
+        return { kind: 'cambio', fn, breaks: { R }, signed: true, values: null, colors: CAMBIO_COLORS };
     }
 
     // Pool values across all years × all munis → robust quantile breaks
@@ -2074,6 +2150,7 @@ function _computeScaleForLayer(layer) {
     const sampleYears = lowerIsBetter(layer) ? [currentYear()] : yrs.length <= 4 ? yrs
         : [yrs[0], yrs[Math.floor(yrs.length / 3)], yrs[Math.floor(2 * yrs.length / 3)], yrs[yrs.length - 1]];
     const values = [];
+    let misses = 0;
     if (state.viewLevel === "mun") {
         const munIds = state.data ? Object.keys(state.data.municipios) : [];
         for (const ine of munIds) {
@@ -2081,66 +2158,70 @@ function _computeScaleForLayer(layer) {
             if (!isMuniIncluded(m)) continue;
             for (const y of sampleYears) {
                 const v = indicatorValue(ine, layer, y);
-                if (v != null && Number.isFinite(v)) values.push(v);
+                if (v != null && Number.isFinite(v)) values.push(v); else misses++;
             }
         }
     } else {
         for (const y of sampleYears) {
             const grouped = aggregateValuesForLevel(state.viewLevel, layer, y);
             for (const v of grouped.values()) {
-                if (v != null && Number.isFinite(v)) values.push(v);
+                if (v != null && Number.isFinite(v)) values.push(v); else misses++;
             }
         }
     }
     if (values.length === 0) {
         return { kind: 'empty', fn: () => NO_DATA_COLOR, breaks: null, signed: false, values };
     }
+    const hasGaps = misses > 0;
+    const tag = (sc) => { sc.hasGaps = hasGaps; return sc; };
 
     const climateSpec = climateScaleSpec(layer);
-    if (climateSpec) return buildClimateScale(layer, values, climateSpec);
-    if (lowerIsBetter(layer)) return buildDistanceScale(values);
+    if (climateSpec) return tag(buildClimateScale(layer, values, climateSpec));
+    if (lowerIsBetter(layer)) return tag(buildDistanceScale(values));
 
-    // Diverging when the indicator naturally crosses zero (SPEI, balances…)
-    const hasNeg = values.some(v => v < 0);
-    const hasPos = values.some(v => v > 0);
-    if (hasNeg && hasPos) {
-        const absMax = Math.max(Math.abs(d3.min(values)), d3.max(values));
-        const fn = d3.scaleLinear()
-            .domain([-absMax, -absMax / 2, 0, absMax / 2, absMax])
-            .range([CAMBIO_COLORS[0], CAMBIO_COLORS[2], CAMBIO_COLORS[3], CAMBIO_COLORS[4], CAMBIO_COLORS[6]])
-            .clamp(true);
-        return { kind: 'diverging', fn, breaks: { absMax }, signed: true, values };
+    // Divergente solo cuando el indicador es de verdad bipolar. Antes bastaba
+    // UN valor negativo: la altitud, con 26 lecturas de −0,6 m sobre 105.573,
+    // se pintaba como si el nivel del mar fuese el centro de una escala roja-azul
+    // y toda Espana caia en la mitad palida. Ahora hacen falta >= 5 % a cada lado.
+    const nNeg = values.reduce((n, v) => n + (v < 0 ? 1 : 0), 0);
+    const nPos = values.reduce((n, v) => n + (v > 0 ? 1 : 0), 0);
+    if (nNeg / values.length >= 0.05 && nPos / values.length >= 0.05) {
+        const srt = values.slice().sort((a, b) => a - b);
+        // absMax robusto (p2 / p98): un solo atipico ya no aplana el resto.
+        const absMax = Math.max(
+            Math.abs(d3.quantile(srt, 0.02) ?? srt[0]),
+            Math.abs(d3.quantile(srt, 0.98) ?? srt[srt.length - 1]),
+            1e-9
+        );
+        const n = DIVERGING_COLORS.length;
+        const dom = d3.range(n).map(i => -absMax + (2 * absMax * i) / (n - 1));
+        const sc = d3.scaleLinear().domain(dom).range(DIVERGING_COLORS).clamp(true);
+        const fn = v => (v == null || !Number.isFinite(v)) ? NO_DATA_COLOR : sc(v);
+        return tag({ kind: 'diverging', fn, breaks: { absMax }, signed: true, values, colors: DIVERGING_COLORS });
     }
 
     values.sort((a, b) => a - b);
     if (layer === "pob_log") {
         const positive = values.filter(v => v > 0);
         if (!positive.length) {
-            return { kind: 'empty', fn: () => POP_COLORS[0], breaks: null, signed: false, values };
+            return { kind: 'empty', fn: () => NO_DATA_COLOR, breaks: null, signed: false, values };
         }
-        const ext = [Math.log10(positive[0]), Math.log10(positive[positive.length - 1])];
-        const sc = d3.scaleLinear()
-            .domain([ext[0], (ext[0] + ext[1]) * 0.6, ext[1]])
-            .range([POP_COLORS[0], POP_COLORS[2], POP_COLORS[4]]);
-        const fn = v => v > 0 ? sc(Math.log10(v)) : POP_COLORS[0];
-        return { kind: 'log', fn, breaks: { ext }, signed: false, values };
+        // Extremos robustos: antes el minimo y el maximo crudos, y un punto medio
+        // inventado —(lo+hi)*0.6— que ni siquiera cae siempre entre los dos.
+        const lo = Math.log10(d3.quantile(positive, 0.005) ?? positive[0]);
+        const hiRaw = Math.log10(d3.quantile(positive, 0.995) ?? positive[positive.length - 1]);
+        const hi = Math.max(hiRaw, lo + 0.5);
+        const n = SEQ_WARM.length;
+        const dom = d3.range(n).map(i => lo + ((hi - lo) * i) / (n - 1));
+        const sc = d3.scaleLinear().domain(dom).range(SEQ_WARM).clamp(true);
+        const fn = v => {
+            if (v == null || !Number.isFinite(v)) return NO_DATA_COLOR;
+            return v > 0 ? sc(Math.log10(v)) : ZERO_COLOR;
+        };
+        return tag({ kind: 'log', fn, breaks: { ext: [lo, hi] }, signed: false, values, colors: SEQ_WARM });
     }
 
-    const breaks = {
-        q50: d3.quantile(values, 0.5),
-        q75: d3.quantile(values, 0.75),
-        q90: d3.quantile(values, 0.9),
-        q97: d3.quantile(values, 0.97),
-    };
-    const fn = v => {
-        if (v == null || !Number.isFinite(v)) return NO_DATA_COLOR;
-        if (v < breaks.q50) return POP_COLORS[0];
-        if (v < breaks.q75) return POP_COLORS[1];
-        if (v < breaks.q90) return POP_COLORS[2];
-        if (v < breaks.q97) return POP_COLORS[3];
-        return POP_COLORS[4];
-    };
-    return { kind: 'quantile', fn, breaks, signed: false, values };
+    return tag(buildClassedScale(values, SEQ_WARM, 'quantile'));
 }
 
 function colorScaleFor(layer /*, year ignored — scale is constant */) {
@@ -2164,89 +2245,120 @@ function getScaleInfo(layer) {
 // ───────── Legend ─────────
 // The legend is derived from the cached scale info — same breaks across
 // every year, so it doesn't shift while the timeline plays.
+// Una leyenda de escalones sobre un relleno continuo promete lo que el mapa no
+// da. Aqui la forma de la leyenda la decide la escala: barra continua cuando el
+// relleno es continuo, casillas cuando de verdad hay clases.
+function legendRampHTML(colors, ticks, caption) {
+    const grad = colors.join(", ");
+    const cells = ticks.map((t, i) => {
+        const align = i === 0 ? "left" : i === ticks.length - 1 ? "right" : "center";
+        return `<span style="flex:1;text-align:${align}">${t}</span>`;
+    }).join("");
+    return `<div class="legend-ramp">
+        <div class="legend-ramp-bar" style="background:linear-gradient(to right, ${grad})"></div>
+        <div class="legend-ramp-scale">${cells}</div>
+        ${caption ? `<div class="legend-ramp-caption">${caption}</div>` : ""}
+    </div>`;
+}
+
 function renderLegend(layer) {
     const legend = $("#legend");
     legend.innerHTML = "";
     let rows = [];
 
-    if (layer === "cambio") {
-        rows = [
-            ["Pierde > 80%", CAMBIO_COLORS[0]],
-            ["Pierde 40–80%", CAMBIO_COLORS[1]],
-            ["Pierde 10–40%", CAMBIO_COLORS[2]],
-            ["Estable (±10%)", CAMBIO_COLORS[3]],
-            ["Crece +50–200%", CAMBIO_COLORS[4]],
-            ["Crece +200–500%", CAMBIO_COLORS[5]],
-            ["Crece > +500%", CAMBIO_COLORS[6]],
-        ];
-    } else if (layer === "pob_log") {
-        rows = [
-            ["10 hab.", POP_COLORS[0]],
-            ["1.000 hab.", POP_COLORS[2]],
-            ["100.000+ hab.", POP_COLORS[4]],
-        ];
-    } else {
-        const info = getScaleInfo(layer);
-        if (info.kind === 'empty' || !info.breaks) {
-            legend.innerHTML = `<div style="font-size:11px;color:var(--ink-mute);font-style:italic">Sin datos para este indicador.</div>`;
-            return;
-        }
-        const meta = indicatorMeta(layer);
-        const unit = meta.unit ? ` ${meta.unit}` : '';
-        const pickFmt = (m) => m >= 1000 ? d3.format(",.0f")
-                          : m >= 10     ? d3.format(",.1f")
-                                        : d3.format(",.2f");
-        if (info.kind === 'diverging') {
-            const m = info.breaks.absMax;
-            const fmt = pickFmt(m);
-            rows = [
-                [`< -${fmt(m / 2)}${unit}`, CAMBIO_COLORS[0]],
-                [`±${fmt(m / 4)}${unit}`,    CAMBIO_COLORS[3]],
-                [`> +${fmt(m / 2)}${unit}`,  CAMBIO_COLORS[6]],
-            ];
-        } else if (info.kind === 'climate-diverging') {
-            const m = info.breaks.absMax;
-            const fmt = pickFmt(m);
-            const colors = info.colors || CLIMATE_DIVERGING_COLORS;
-            rows = [
-                [`Seco < -${fmt(m / 2)}${unit}`, colors[0]],
-                [`Cerca de 0`, colors[2]],
-                [`Humedo > +${fmt(m / 2)}${unit}`, colors[4]],
-            ];
-        } else if (info.kind === 'binary') {
-            rows = (info.labels || ["No", "Si"]).map((label, i) => [label, info.colors?.[i] || NO_DATA_COLOR]);
-        } else if (info.kind === 'distance') {
-            const b = info.breaks;
-            const fmt = pickFmt(b.q80);
-            const colors = info.colors || DISTANCE_COLORS;
-            rows = [
-                [`Muy cerca: < ${fmt(b.q20)}${unit}`, colors[0]],
-                [`Cerca: ${fmt(b.q20)}-${fmt(b.q40)}`, colors[1]],
-                [`Distancia media: ${fmt(b.q40)}-${fmt(b.q60)}`, colors[2]],
-                [`Lejos: ${fmt(b.q60)}-${fmt(b.q80)}`, colors[3]],
-                [`Muy lejos: > ${fmt(b.q80)}${unit}`, colors[4]],
-            ];
-        } else if (info.kind === 'continuous') {
-            const b = info.breaks;
-            const fmt = pickFmt(Math.max(Math.abs(b.hi), Math.abs(b.lo)));
-            rows = [
-                [`< ${fmt(b.q25)}${unit}`, info.fn((b.lo + b.q25) / 2)],
-                [`${fmt(b.q25)} - ${fmt(b.q50)}`, info.fn((b.q25 + b.q50) / 2)],
-                [`${fmt(b.q50)} - ${fmt(b.q75)}`, info.fn((b.q50 + b.q75) / 2)],
-                [`> ${fmt(b.q75)}${unit}`, info.fn((b.q75 + b.hi) / 2)],
-            ];
-        } else {
-            const b = info.breaks;
-            const fmt = pickFmt(b.q97);
-            rows = [
-                [`< ${fmt(b.q50)}${unit}`,             POP_COLORS[0]],
-                [`${fmt(b.q50)} – ${fmt(b.q75)}`,      POP_COLORS[1]],
-                [`${fmt(b.q75)} – ${fmt(b.q90)}`,      POP_COLORS[2]],
-                [`${fmt(b.q90)} – ${fmt(b.q97)}`,      POP_COLORS[3]],
-                [`> ${fmt(b.q97)}${unit}`,              POP_COLORS[4]],
-            ];
-        }
+    const info = getScaleInfo(layer);
+    if (info.kind === 'empty' || !info.breaks) {
+        legend.innerHTML = `<div style="font-size:11px;color:var(--ink-mute);font-style:italic">Sin datos para este indicador.</div>`;
+        return;
     }
+    const meta = indicatorMeta(layer);
+    const unit = meta.unit ? ` ${meta.unit}` : '';
+    const pickFmt = (m) => m >= 1000 ? d3.format(",.0f")
+                      : m >= 10     ? d3.format(",.1f")
+                                    : d3.format(",.2f");
+    const gapRow = () => { if (info.hasGaps) rows.push(["Sin dato", NO_DATA_COLOR]); };
+
+    if (info.kind === 'cambio') {
+        legend.innerHTML = legendRampHTML(
+            CAMBIO_COLORS,
+            ["÷20", "÷4,5", "1900", "×4,5", "×20"],
+            "veces la población de 1900 · escala logarítmica");
+        if (info.hasGaps !== false) {
+            const r = document.createElement("div");
+            r.className = "legend-row";
+            r.innerHTML = `<span class="legend-swatch" style="background:${NO_DATA_COLOR}"></span><span>Sin dato</span>`;
+            legend.appendChild(r);
+        }
+        return;
+    }
+
+    if (info.kind === 'log') {
+        const [lo, hi] = info.breaks.ext;
+        const at = t => d3.format(",.0f")(Math.pow(10, lo + (hi - lo) * t));
+        legend.innerHTML = legendRampHTML(
+            SEQ_WARM, [at(0), at(0.5), at(1)], "habitantes · escala logarítmica");
+        return;
+    }
+
+    if (info.kind === 'diverging') {
+        const m = info.breaks.absMax;
+        const fmt = pickFmt(m);
+        legend.innerHTML = legendRampHTML(
+            info.colors || DIVERGING_COLORS,
+            [`−${fmt(m)}`, "0", `+${fmt(m)}`],
+            meta.unit ? meta.unit : "");
+        return;
+    }
+
+    if (info.kind === 'climate-diverging') {
+        const m = info.breaks.absMax;
+        const fmt = pickFmt(m);
+        legend.innerHTML = legendRampHTML(
+            info.colors || CLIMATE_DIVERGING_COLORS,
+            [`Seco −${fmt(m)}`, "0", `Húmedo +${fmt(m)}`], meta.unit ? meta.unit : "");
+        return;
+    }
+
+    if (info.kind === 'continuous') {
+        const b = info.breaks;
+        const fmt = pickFmt(Math.max(Math.abs(b.hi), Math.abs(b.lo)));
+        legend.innerHTML = legendRampHTML(
+            info.colors || SEQ_COOL,
+            [`${fmt(b.lo)}`, `${fmt(b.q50)}`, `${fmt(b.hi)}`],
+            meta.unit ? meta.unit : "");
+        return;
+    }
+
+    if (info.kind === 'binary') {
+        rows = (info.labels || ["No", "Si"]).map((label, i) => [label, info.colors?.[i] || NO_DATA_COLOR]);
+    } else {
+        // quantile | distance: clases de verdad, y la leyenda dice sus cortes.
+        const b = info.breaks;
+        const colors = info.colors || SEQ_WARM;
+        const edges = b.edges || [];
+        // El formato lo decide cada corte, no el mayor de todos: con embalses de
+        // 3.000 hm3 y cortes de 0,4 hm3, un unico formato imprimia «< 0» y «0 – 1».
+        const fmt = v => {
+            const a = Math.abs(v);
+            return d3.format(a >= 10 ? ",.0f" : a >= 1 ? ",.1f" : a >= 0.1 ? ",.2f" : ",.3f")(v);
+        };
+        const near = info.kind === 'distance';
+        if (b.zeroClass) rows.push([near ? "En la propia red (0)" : "Cero", ZERO_COLOR]);
+        if (!edges.length) {
+            rows.push([`${fmt(b.min)} – ${fmt(b.max)}${unit}`, colors[0]]);
+        } else {
+            edges.forEach((e, i) => {
+                const label = i === 0
+                    ? `${near ? "Muy cerca: " : ""}< ${fmt(e)}${unit}`
+                    : `${fmt(edges[i - 1])} – ${fmt(e)}`;
+                rows.push([label, colors[i]]);
+            });
+            rows.push([`${near ? "Muy lejos: " : ""}> ${fmt(edges[edges.length - 1])}${unit}`,
+                       colors[colors.length - 1]]);
+        }
+        gapRow();
+    }
+
     rows.forEach(([label, color]) => {
         const row = document.createElement("div");
         row.className = "legend-row";

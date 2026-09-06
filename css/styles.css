@@ -438,7 +438,11 @@ body.resizing-sidebar {
 }
 .legend-swatch {
     width: 18px; height: 12px;
-    border: 1px solid rgba(0,0,0,0.06);
+    /* Hairline en --rule y no en rgba(0,0,0,.06): la casilla «Cero»
+       (#faf5e6) queda a 0,87 dE del papel del panel (--bg #fbf6e9) y sin
+       un borde visible la clave de la leyenda no se ve. --rule da 12,5 dE
+       contra el papel y 12,2 contra el relleno. Verificado 2026-09-06. */
+    border: 1px solid var(--rule);
     flex-shrink: 0;
 }
 .legend-line {
@@ -447,10 +451,35 @@ body.resizing-sidebar {
     border-top-width: 2px;
     border-top-style: solid;
 }
-.legend-line.ov-roman { border-top: 2px dashed #f2b86b; }
-.legend-line.ov-rail-iberian { border-top: 2px solid #4da3ff; }
-.legend-line.ov-rail-narrow { border-top: 2px dashed #55d59a; }
-.legend-line.ov-rail-hsr { border-top: 2.5px solid #ff6b6b; }
+.legend-line.ov-roman { border-top: 2px dashed #8f3b1f; }
+.legend-line.ov-rail-iberian { border-top: 2px solid #22384a; }
+.legend-line.ov-rail-narrow { border-top: 2px dashed #4f8b99; }
+.legend-line.ov-rail-hsr { border-top: 2.5px solid #7c5c9c; }
+
+/* Barra continua: se usa cuando el relleno del mapa es continuo, para que la
+   leyenda no prometa escalones que el mapa no dibuja. Revisado 2026-09-06. */
+.legend-ramp {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.legend-ramp-bar {
+    height: 12px;
+    width: 100%;
+    border: 1px solid rgba(51, 42, 30, 0.18);
+}
+.legend-ramp-scale {
+    display: flex;
+    font-size: 10px;
+    color: var(--ink-soft);
+    line-height: 1.25;
+    gap: 4px;
+}
+.legend-ramp-caption {
+    font-size: 10px;
+    color: var(--ink-mute);
+    line-height: 1.3;
+}
 
 /* ── Selection panel ── */
 .selection-panel { background: var(--bg-alt); }
@@ -741,24 +770,24 @@ body.resizing-sidebar {
     cursor: help;
 }
 .map .ov-roman {
-    stroke: #f2b86b;
+    stroke: #8f3b1f;
     stroke-width: 3.1;
     stroke-dasharray: 4 3;
     opacity: 1;
 }
 .map .ov-rail-iberian {
-    stroke: #4da3ff;
+    stroke: #22384a;
     stroke-width: 2.7;
     opacity: 1;
 }
 .map .ov-rail-narrow {
-    stroke: #55d59a;
+    stroke: #4f8b99;
     stroke-width: 2.35;
     stroke-dasharray: 3 2;
     opacity: 1;
 }
 .map .ov-rail-hsr {
-    stroke: #ff6b6b;
+    stroke: #7c5c9c;
     stroke-width: 3.2;
     opacity: 1;
 }
@@ -772,7 +801,7 @@ body.resizing-sidebar {
     stroke-width: 0.34;
 }
 .map.route-mode .municipio.selected {
-    fill: rgba(192, 57, 43, 0.18);
+    fill: rgba(176, 69, 40, 0.18);
     stroke: var(--accent);
     stroke-width: 1.8;
 }

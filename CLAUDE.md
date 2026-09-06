@@ -56,7 +56,7 @@ build/                  ← Scripts Python (NO desplegar)
   (ni Google Fonts ni `@font-face`): las familias viven solo en la pila CSS.
 - Datos pre-generados con Python (geopandas, pandas)
 
-## Paleta y cromo (2026-09)
+## Paleta y cromo (2026-09; escalas de mapa rehechas el 2026-09-06)
 El cromo del visor sigue la **portada aprobada** del propio visor:
 `07_temp/portadas_visores_2026-09/spain_municipal/V1_espana-que-se-vacia.html`
 — papel crema con grano, pigmento sepia y sanguina, titulares en EB Garamond.
@@ -66,11 +66,135 @@ El cromo del visor sigue la **portada aprobada** del propio visor:
 1. *Cromo* (marco: fondos, paneles, reglas, texto, acento, botones, pestañas,
    tooltips, portada de entrada). Vive en `:root` de `css/styles.css` y se
    toca ahí, nunca con literales sueltos.
-2. *Datos* (encodings de mapa y gráficos). Vive en `js/app.js`: `POP_COLORS`,
-   `CAMBIO_COLORS`, `DISTANCE_COLORS`, `CLIMATE_*`, `LINE_COLORS`,
-   `NO_DATA_COLOR` y los colores de las capas de transporte (calzada romana,
-   ferrocarril ibérico, estrecho, AVE, también en `.legend-line.ov-*`).
-   **No se tocan por estética.** Están elegidos por lectura de datos.
+2. *Datos* (encodings de mapa y gráficos). Vive en `js/app.js`: `SEQ_WARM`,
+   `SEQ_COOL`, `DIVERGING_COLORS` y sus alias (`POP_COLORS`, `CAMBIO_COLORS`,
+   `DISTANCE_COLORS`, `CLIMATE_*`), más `LINE_COLORS`, `NO_DATA_COLOR`,
+   `ZERO_COLOR`, `LAND_BASE_COLOR` y los colores de las capas de transporte
+   (calzada romana, ferrocarril ibérico, estrecho, AVE, también en
+   `.legend-line.ov-*`).
+
+### Las escalas de mapa: revisadas el 6 de septiembre de 2026
+
+**La regla vieja ya no vale.** Hasta el 6 de septiembre de 2026 aquí ponía
+«NO tocar las escalas de color de datos: están elegidas por lectura». El autor
+levantó esa regla ese día para las escalas de mapa, y se rehicieron enteras.
+No se rehicieron por decoración: se rehicieron porque **no leían**. Lo medido
+antes de tocar nada, sobre los 8.122 municipios que se pintan de verdad:
+
+- `pob` y `densidad` metían el **53 %** y el **55 %** del país en un solo color.
+- `Vol_Irrigation` pintaba **el mapa entero del color más oscuro**: con el 98 %
+  de los valores a cero, los cuatro cortes (q50/q75/q90/q97) empataban en 0 y
+  toda unidad caía en la última clase. Lo mismo `Vol_Electricity` y `Vol_Supply`.
+  `Reservoir_volume` daba 2 tonos; `forest_ha`, 3.
+- `altitude` se pintaba con la rampa **divergente** porque 26 lecturas de −0,6 m
+  sobre 105.573 la hacían «cruzar el cero»: toda España en la mitad pálida.
+- La leyenda de `cambio` prometía **siete escalones rotulados** sobre un relleno
+  **continuo**; y el 20 % de los municipios estaba saturado en los dos extremos.
+- `CLIMATE_PRECIP_COLORS` tenía un par a **1,92 dE en protanopia**: para un
+  protanópico, dos de sus seis anclas eran el mismo color.
+- `NO_DATA_COLOR` (`#e4e8ec`) estaba a **2,46 dE** del lienzo del mapa: «sin
+  dato» era invisible. «Cero» no existía como categoría.
+
+**Criterio con el que se rehicieron.** El aire común sale de la portada
+aprobada (papel crema, pigmento sombra/sanguina, ceniza), pero manda la
+codificación: si discriminar y parecerse a la portada chocan, gana discriminar.
+Tres familias y no más, para que el atlas entero se lea como un solo mapa:
+
+| familia | uso | rampa |
+|---|---|---|
+| `SEQ_WARM` | cantidades (población, densidad, superficies, volúmenes, altitud, rugosidad) | `#f4e8c6 → #653524` crema → ocre → tostado → sombra → umbría |
+| `SEQ_COOL` | distancias, agua, frío (precipitación, heladas) | `#f7e6c6 → #114855` crema → ceniza → ceniza oscura |
+| `DIVERGING_COLORS` | bipolares (cambio, temperatura, SPEI invertida) | las dos anteriores encontrándose sobre el papel `#ebdec9` |
+
+Las tres llevan **escalera de L\* pareja**: 92 → 28 en pasos de ≈11. La
+polaridad de `cambio` sigue a la portada: **pérdida = ceniza, ganancia =
+sanguina**. Antes era al revés y contradecía a la propia rampa secuencial, en
+la que el rojo oscuro significa «mucha gente».
+
+**Medidas que hay que respetar** (dE = CIEDE2000; separables = umbral dE ≥ 5):
+
+- Distancia mínima **entre clases contiguas**: 9,35 dE (`SEQ_WARM`),
+  8,87 (`SEQ_COOL`), 18,36 (`DIVERGING`). En deuteranopia y protanopia las
+  siete clases de cada familia siguen separándose (mínimos 7,87 / 8,59 / 16,56).
+- Ninguna clase se acerca al **acento del cromo** `--accent #b04528` a menos de
+  8,7 dE: un dato no se puede confundir con un botón.
+- Categorías que no son valores: `NO_DATA_COLOR #bfbbb2` (13,36 dE del lienzo,
+  13,56 de `ZERO_COLOR`, ≥ 10,20 de cualquier rampa) y `ZERO_COLOR #faf5e6`
+  (8,08 del lienzo, 6,99 de la clase más clara). Se mantienen en deuteranopia
+  y protanopia (13,56 / 13,45 entre sí).
+- `LAND_BASE_COLOR #f1e9d7` es la tierra **sin indicador** (modo redes), no
+  «sin dato»: son cosas distintas y antes compartían color. 9,45 dE del lienzo.
+- **Aviso medido en la verificación (2026-09-06).** `ZERO_COLOR #faf5e6` se
+  midió contra el lienzo del mapa, pero la casilla «Cero» de la leyenda no vive
+  sobre el lienzo: vive sobre el papel del panel `--bg #fbf6e9`, y ahí está a
+  **0,87 dE** — el mismo color. Por eso `.legend-swatch` lleva su borde en
+  `var(--rule)` (#c9c0ad: 12,5 dE del papel, 12,2 del relleno) y no en el
+  `rgba(0,0,0,.06)` de antes, que dejaba la clave invisible. Si alguien aclara
+  `ZERO_COLOR` o afloja ese borde, la fila «Cero» y la fila «No» de las capas
+  binarias de Köppen desaparecen de la leyenda. Lo mismo vale para
+  `LAND_BASE_COLOR`, que es idéntico a `--bg-alt`.
+- Series de gráficos `LINE_COLORS`: 8 colores, mínimo mutuo 15,06 dE (14,13 en
+  deuteranopia, 15,02 en protanopia) y ≥ 3,05:1 WCAG sobre `--bg`. El juego
+  anterior tenía dos series a **1,59 dE en protanopia**.
+
+**Qué cambió en el algoritmo, no solo en los hexadecimales** (todo en
+`_computeScaleForLayer` y `buildClassedScale`):
+
+1. **Escala clasificada genérica** con cortes en los cuantiles
+   `CLASS_QUANTILES = [.15 .32 .49 .64 .78 .91]` → hasta 7 clases, en vez de
+   q50/q75/q90/q97, que dejaba media España de un color.
+2. **Clase «cero» propia** cuando el cero significa «nada de esto aquí» (sin
+   negativos y ≥ 4 % de las unidades exactamente en cero). La rampa se calcula
+   solo sobre los positivos y arranca en t = 0,14 para no rozar el cero.
+3. **Colapso de empates**: si dos cortes coinciden se pierde una clase y los
+   colores se remuestrean con `rampColors()`. Es lo que arregla los embalses.
+4. **Puerta de la divergente**: hace falta ≥ 5 % de valores a cada lado del
+   cero. Y el `absMax` es robusto (p2/p98), no el mínimo y el máximo crudos.
+5. **`cambio` se pinta sobre `log10(P_t / P_1900)`**, no sobre el porcentaje.
+   El porcentaje es un cociente: −100 % está acotado y +infinito no. Con
+   ±log10(20) satura el 1,6 % de los municipios (2011) frente al 20 % de antes.
+   El tooltip y la tabla siguen dando el porcentaje; solo cambia el color.
+6. **`pob_log`**: extremos robustos (p0,5/p99,5) y siete anclas repartidas.
+   Antes el punto medio era `(lo+hi)*0.6`, que ni siquiera cae siempre entre
+   `lo` y `hi`.
+7. **La leyenda dice la verdad**: casillas cuando la escala está clasificada
+   (con sus cortes reales y su fila «Sin dato» si la hay), y **barra continua**
+   `.legend-ramp` cuando el relleno es continuo (`cambio`, `pob_log`,
+   divergentes y continuas de clima). Ya no hay escalones rotulados sobre un
+   degradado.
+
+**Resultado medido sobre los 45 indicadores pintables** (año 2011, o 2010 en
+usos del suelo), contando los tonos perceptualmente distintos que salen al
+colorear los 8.122 municipios:
+
+| | antes | después |
+|---|---|---|
+| tonos separables (media) | 5,8 | 7,9 |
+| grumo indistinguible (media) | 51,6 % | 38,4 % |
+| indicadores con ≤ 2 tonos | 10 | 4 (los 4 son capas binarias de Köppen) |
+| indicadores con grumo > 50 % | 22 | 14 |
+
+«Grumo» = porcentaje de municipios cuyo color está a menos de 5 dE del color
+modal: el mayor grupo que el ojo **no** puede separar. Casos: `pob` 53,3 →
+19,2 %; `altitude` 61,7 → 17,0 %; `cambio` 30,6 → 1,9 %; `Vol_Irrigation`
+1 → 8 tonos.
+
+**Lo que empeoró y por qué se aceptó.** `pp` baja de 15 a 11 tonos y
+`grow_period_pp` de 15 a 9: la rampa vieja ganaba tonos cruzando de verde a
+azul, que es justo el cruce que un dicrómata no puede seguir (par a 1,92 dE en
+protanopia). Su grumo ya era pequeño (7,8 % y 15,3 %), o sea que ahí no había
+problema de lectura que resolver. `altitude` baja de 10 a 8 tonos, pero los 10
+de antes vivían todos en la mitad pálida de una divergente equivocada.
+
+**Si vuelves a tocar estas escalas, remide.** No se aprueba a ojo. Hay que dar
+las cifras de antes y después: tonos separables con dE2000 ≥ 5 sobre los 8.122
+municipios en al menos dos indicadores, lo mismo simulando deuteranopia y
+protanopia, la distancia de «sin dato» y «cero» al lienzo y entre sí, y el
+contraste del texto sobre píxeles reales con
+`06_dev/docs/visores_2026-09/tools/contraste_pixel.py`. El banco de medida que
+se usó el 6 de septiembre quedó en
+`C:/Work/scratch/checkpoint/visores_2026-09/paletas/web_spain_municipal/`
+(`colorlab.py`, `measure.py`, `run_before.py`, `run_after.py`, `compare.py`).
 
 Tokens (`css/styles.css`, `:root`), con su origen en la portada:
 
@@ -91,10 +215,17 @@ Tokens (`css/styles.css`, `:root`), con su origen en la portada:
 | `--font-serif` | `'EB Garamond', 'Source Serif Pro', Garamond, Georgia, …` | titulares |
 | `--font-sans` | `'Alegreya Sans', 'Inter', system-ui, …` | interfaz |
 
-- **`--bg-map` se queda gris-ceniza, no crema.** El quintil bajo de
-  `POP_COLORS` (`#fbe8c2`) se eligió para leerse sobre ese fondo frío: su
-  luminancia y la del lienzo crema serían casi idénticas (1,04:1) y el mapa
-  perdería el primer escalón de la escala. Es la única concesión del marco.
+- **`--bg-map` se queda gris-ceniza, no crema.** La decisión aguanta; el
+  número con que estaba escrita, no. Decía que sobre lienzo crema el quintil
+  bajo daría «1,04:1»; remedido el 6-9-2026, ese 1,04:1 es el contraste WCAG
+  contra el lienzo **gris que ya tiene** (sobre crema `--bg` da 1,12:1, o sea
+  algo mejor). Y además WCAG es la vara equivocada: mide legibilidad de texto,
+  no dos rellenos contiguos. Con la vara buena (dE2000) la decisión se sostiene
+  y con margen: la clase más clara de la rampa contra el lienzo da **14,18 dE**
+  sobre `#e9eff0`, **7,75** sobre `--bg #fbf6e9` y **5,22** sobre
+  `--bg-alt #f1e9d7`. El lienzo frío casi triplica la separación del primer
+  escalón: se queda. Es la única concesión del marco.
+  (Con la rampa anterior las cifras eran 15,83 / 9,14 / 6,70: misma conclusión.)
 - **Fuentes**: EB Garamond y Alegreya Sans encabezan la pila pero **no se
   descargan** (no se añade ninguna petición nueva). Si no están instaladas,
   los titulares caen en Georgia y la interfaz en la sans del sistema. De la
@@ -129,11 +260,22 @@ Tokens (`css/styles.css`, `:root`), con su origen en la portada:
 ## Reglas para agentes
 - **NO modificar `build/`** sin instrucción explícita
 - **NO añadir frameworks ni npm** (ni CDNs ni hojas de fuentes)
-- **NO tocar las escalas de color de datos** (ver «Paleta y cromo»)
+- **Escalas de color de datos**: revisadas el 6-9-2026 por encargo del autor.
+  Ya no rige el antiguo «no se tocan», pero **no se tocan a ojo**: quien las
+  cambie tiene que remedir y dejar las cifras (ver «Paleta y cromo»)
 - **Idioma**: español
 - **Datos**: regenerar con scripts en `build/`, no editar JSON manualmente
 
 ## UI: tres categorías como tabs en el top bar
+> **Un total absoluto en un coropleto dibuja sobre todo el tamaño del municipio.**
+> `pob` (habitantes) y las superficies y volúmenes en ha/hm³ lo son: el mapa que
+> pintan está correlacionado con `area_km2`. El visor ya ofrece las tres salidas
+> honestas y ninguna se ha cambiado de sitio: `densidad` (hab/km²), el conmutador
+> Superficie/% de los usos del suelo, y el modo **Bolas**, que saca la cantidad
+> del polígono. Si algún día se decide un indicador por defecto distinto de
+> `pob`, el candidato es `densidad`; no se tocó el 6-9-2026 porque es una
+> decisión editorial, no de color.
+
 - **Población** (choropleth, radio): pob total · pob log · densidad · cambio %
 - **Transporte** (overlays, checkbox): calzadas romanas · ferrocarril ibérico ·
   ferrocarril estrecho · AVE
