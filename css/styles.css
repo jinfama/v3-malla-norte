@@ -4,26 +4,47 @@
    ─────────────────────────────────────────────────────────── */
 
 :root {
-    --bg: #ffffff;
-    --bg-alt: #f7f8fa;
-    --bg-map: #edf4f8;        /* gris-azul neutro: agua/vacio, no dato */
-    --ink: #1a1a1a;
-    --ink-soft: #555555;
-    --ink-mute: #8a8a8a;
-    --rule: #e2e4e8;
-    --rule-soft: #eef0f3;
-    --accent: #c0392b;
-    --accent-soft: #f4d4cc;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+    /* Cromo tomado de la portada aprobada del visor:
+       07_temp/portadas_visores_2026-09/spain_municipal/V1_espana-que-se-vacia.html
+       (papel crema con grano, pigmento sepia y sanguina, titulares en EB Garamond).
+       Solo el marco es de papel: las ESCALAS DE DATOS (POP_COLORS, CAMBIO_COLORS,
+       DISTANCE_COLORS, CLIMATE_*, LINE_COLORS y NO_DATA_COLOR en js/app.js) y los
+       colores de las capas de transporte se quedan EXACTAMENTE como estaban. */
+    --bg: #fbf6e9;            /* --cal de la portada: paneles y superficies */
+    --bg-alt: #f1e9d7;        /* --papel de la portada: fondo hundido y hover */
+    --bg-map: #e9eff0;        /* lienzo del mapa (agua/vacio): se queda FRIO a
+                                 proposito. El quintil bajo de POP_COLORS (#fbe8c2)
+                                 se eligio para leerse sobre este gris-ceniza; en
+                                 crema desapareceria. Tampoco es el color de
+                                 "sin dato" (ese es NO_DATA_COLOR en js/app.js). */
+    --ink: #332a1e;           /* --tinta */
+    --ink-soft: #584735;      /* --tinta2 */
+    --ink-mute: #75664f;      /* --muted (#8b7a62) asentado: el original da 3,8:1
+                                 sobre cal y aqui se usa para texto de 10-12 px */
+    --rule: #c9c0ad;          /* --hair (.22 de tinta) resuelto sobre papel */
+    --rule-soft: #e3dbc8;
+    --accent: #b04528;        /* --sanguina (#b4482a) asentada un 2 % de luminancia
+                                 para pasar 4,5:1 como texto sobre papel */
+    --accent-strong: #7c2c15; /* --sanguina-osc: hover y estados activos */
+    --accent-soft: #e4c8b4;   /* sanguina al 20 % sobre papel: bordes y rellenos */
+    --accent-wash: rgba(176,69,40,0.07); /* velo de sanguina para hover/activo */
+    --shadow-sm: 0 1px 2px rgba(51,42,30,0.06);
+    --shadow-md: 0 4px 14px rgba(51,42,30,0.12);
 
     --topbar-h: 92px;
     --topbar-main-h: 56px;
     --timebar-h: 76px;
     --sidebar-w: 320px;
 
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-serif: 'Source Serif Pro', Georgia, serif;
+    /* Voz tipografica de la portada. El visor no pide ninguna hoja de fuentes
+       (ni Google Fonts ni @font-face) y no se le anade ninguna peticion nueva:
+       las familias de la portada encabezan la pila y, si no estan instaladas,
+       se cae en Georgia (titulares) y en la sans del sistema (interfaz).
+       De la pila de la portada se deja fuera a proposito Gill Sans MT: su
+       cifra 1 es un palo sin base y en las tablas de poblacion se confunde
+       con I/l (probado: "1.731.649" y el puesto "11" del ranking). */
+    --font-sans: 'Alegreya Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-serif: 'EB Garamond', 'Source Serif Pro', Garamond, Georgia, 'Times New Roman', serif;
 }
 
 * { box-sizing: border-box; }
@@ -32,227 +53,11 @@ html, body {
     height: 100%;
     font-family: var(--font-sans);
     color: var(--ink);
-    background: var(--bg);
+    background: var(--bg-alt);
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     overflow: hidden;
-}
-
-/* Intro */
-.intro-view {
-    position: fixed;
-    inset: 0;
-    z-index: 120;
-    overflow: hidden;
-    background: #111513;
-    color: #fff8ea;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding: 56px 64px 34px;
-    transition: opacity 0.45s ease, visibility 0.45s ease;
-}
-.intro-view.hidden {
-    opacity: 0;
-    pointer-events: none;
-    visibility: hidden;
-}
-body:not(.intro-dismissed) .topbar,
-body:not(.intro-dismissed) .layout,
-body:not(.intro-dismissed) .timebar,
-body:not(.intro-dismissed) .data-view,
-body:not(.intro-dismissed) .about-view {
-    visibility: hidden;
-}
-.intro-map-stage {
-    position: absolute;
-    inset: 0;
-    background:
-        linear-gradient(0deg, rgba(17,21,19,0.98) 0%, rgba(17,21,19,0.72) 26%, rgba(17,21,19,0.12) 58%, rgba(17,21,19,0.06) 100%),
-        linear-gradient(90deg, rgba(17,21,19,0.86) 0%, rgba(17,21,19,0.42) 42%, rgba(17,21,19,0.12) 100%),
-        #243130;
-}
-.intro-map {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-}
-.intro-map .intro-sea { fill: #152023; }
-.intro-map .intro-old-fill {
-    fill: rgba(220, 176, 107, 0.26);
-    stroke: rgba(248, 224, 174, 0.48);
-    stroke-width: 1.35;
-    vector-effect: non-scaling-stroke;
-}
-.intro-map .intro-old-line {
-    fill: none;
-    stroke: rgba(242, 201, 132, 0.55);
-    stroke-width: 0.85;
-    stroke-dasharray: 7 5;
-    vector-effect: non-scaling-stroke;
-}
-.intro-map .intro-modern-fill {
-    fill: rgba(211, 77, 42, 0.18);
-    stroke: rgba(255, 247, 224, 0.38);
-    stroke-width: 0.24;
-    vector-effect: non-scaling-stroke;
-}
-.intro-map .intro-modern-border {
-    fill: none;
-    stroke: #f7d46f;
-    stroke-width: 1.3;
-    vector-effect: non-scaling-stroke;
-    filter: url(#intro-glow);
-}
-.intro-map .intro-coast {
-    fill: none;
-    stroke: rgba(255, 248, 226, 0.8);
-    stroke-width: 1.8;
-    vector-effect: non-scaling-stroke;
-}
-.intro-time-compass {
-    filter: url(#intro-glow);
-    opacity: 0.92;
-}
-.intro-compass-orbit {
-    transition: transform 0.08s ease-out;
-}
-.intro-compass-ring {
-    fill: none;
-    stroke: rgba(247, 212, 111, 0.36);
-    stroke-width: 1.1;
-    vector-effect: non-scaling-stroke;
-}
-.intro-compass-ring.inner {
-    stroke: rgba(255, 248, 234, 0.16);
-    stroke-dasharray: 3 7;
-}
-.intro-compass-rotor {
-    transform-box: fill-box;
-    transform-origin: center;
-}
-.intro-compass-sweep {
-    fill: rgba(247, 212, 111, 0.13);
-    stroke: rgba(247, 212, 111, 0.36);
-    stroke-width: 0.8;
-    vector-effect: non-scaling-stroke;
-}
-.intro-compass-hand {
-    stroke: #f7d46f;
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    vector-effect: non-scaling-stroke;
-}
-.intro-compass-hand.alt {
-    stroke: rgba(255, 248, 234, 0.42);
-    stroke-width: 0.9;
-}
-.intro-era-mark circle {
-    fill: #f7d46f;
-    opacity: 0.45;
-    animation: introEraPulse 10s ease-in-out infinite;
-}
-.intro-era-mark text {
-    fill: rgba(255, 248, 234, 0.78);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-anchor: middle;
-    dominant-baseline: central;
-}
-.intro-plate {
-    opacity: 0;
-    transform-box: fill-box;
-    transform-origin: center;
-}
-.intro-plate-1 { animation: introMapFlash 10s ease-in-out infinite; }
-.intro-plate-2 { animation: introMapFlash 10s ease-in-out infinite 1.4s; }
-.intro-modern {
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: introModernReveal 10s ease-in-out infinite;
-}
-.intro-scan {
-    opacity: 0.26;
-    animation: introScan 10s linear infinite;
-}
-.intro-copy {
-    position: relative;
-    z-index: 2;
-    width: min(680px, 82vw);
-    text-align: center;
-    text-shadow: 0 2px 22px rgba(0,0,0,0.45);
-    transform: translateY(14px);
-}
-.intro-kicker {
-    font-size: clamp(19px, 2.4vw, 28px);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: #f7d46f;
-    font-weight: 700;
-    margin-bottom: 10px;
-}
-.intro-copy h1 {
-    margin: 0 0 12px;
-    font-family: var(--font-serif);
-    font-size: clamp(34px, 4.2vw, 54px);
-    line-height: 1.02;
-    letter-spacing: 0;
-}
-.intro-copy p {
-    max-width: 520px;
-    margin: 0 auto 24px;
-    color: rgba(255, 248, 234, 0.82);
-    font-size: 15px;
-    line-height: 1.75;
-}
-.intro-actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-bottom: 0;
-}
-.intro-enter {
-    appearance: none;
-    border: 1px solid rgba(255, 248, 234, 0.34);
-    font-family: var(--font-sans);
-    font-size: 13px;
-    font-weight: 700;
-    padding: 10px 16px;
-    cursor: pointer;
-}
-.intro-enter {
-    background: #f7d46f;
-    color: #17150d;
-    border-color: #f7d46f;
-}
-.intro-enter:hover { background: #fff2b5; }
-
-@keyframes introMapFlash {
-    0%, 100% { opacity: 0; transform: scale(0.985) rotate(-0.2deg); }
-    10%, 22% { opacity: 0.82; transform: scale(1) rotate(0deg); }
-    34% { opacity: 0; transform: scale(1.012) rotate(0.15deg); }
-}
-@keyframes introModernReveal {
-    0%, 42% { opacity: 0; transform: scale(1.018) rotate(-0.7deg); }
-    54%, 88% { opacity: 1; transform: scale(1) rotate(0deg); }
-    100% { opacity: 0; transform: scale(0.992) rotate(0.35deg); }
-}
-@keyframes introScan {
-    from { transform: translateX(-8%); }
-    to { transform: translateX(8%); }
-}
-@keyframes introCompassSpin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-@keyframes introEraPulse {
-    0%, 100% { opacity: 0.35; r: 3; }
-    10%, 24% { opacity: 1; r: 5; }
-    34% { opacity: 0.35; r: 3; }
 }
 
 /* ── Topbar ── */
@@ -291,7 +96,7 @@ body:not(.intro-dismissed) .about-view {
     right: 20px;
     width: 32px;
     height: 32px;
-    border-radius: 999px;
+    border-radius: 0;
     border: 1px solid var(--rule);
     background: var(--bg);
     color: var(--ink-soft);
@@ -306,7 +111,7 @@ body:not(.intro-dismissed) .about-view {
 .info-btn.active {
     color: var(--accent);
     border-color: var(--accent-soft);
-    background: #fff7f4;
+    background: var(--accent-wash);
 }
 
 .brand { display: flex; align-items: center; gap: 14px; }
@@ -323,6 +128,7 @@ body:not(.intro-dismissed) .about-view {
     font-family: var(--font-serif);
     font-weight: 600;
     font-size: 16px;
+    letter-spacing: -0.012em;
     color: var(--ink);
 }
 .cat-tabs {
@@ -330,7 +136,7 @@ body:not(.intro-dismissed) .about-view {
     gap: 6px;
     background: var(--bg-alt);
     border: 1px solid var(--rule);
-    border-radius: 999px;
+    border-radius: 0;
     padding: 3px;
     min-width: 0;
     max-width: 100%;
@@ -351,7 +157,7 @@ body:not(.intro-dismissed) .about-view {
     font-weight: 500;
     color: var(--ink-soft);
     cursor: pointer;
-    border-radius: 999px;
+    border-radius: 0;
     transition: all 0.15s;
     white-space: nowrap;
 }
@@ -388,7 +194,7 @@ body:not(.intro-dismissed) .about-view {
     text-transform: uppercase;
     color: var(--ink-soft);
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 0;
     transition: all 0.15s;
 }
 .nav-btn:hover { color: var(--ink); background: var(--bg-alt); }
@@ -459,7 +265,7 @@ body.resizing-sidebar {
 .sidebar-section:last-child { border-bottom: none; }
 .kicker {
     font-size: 10px;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.17em;
     text-transform: uppercase;
     color: var(--ink-mute);
     font-weight: 600;
@@ -500,6 +306,34 @@ body.resizing-sidebar {
     border-color: var(--accent);
     box-shadow: none;
 }
+.transport-mode-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-bottom: 6px;
+    padding: 3px;
+    background: var(--bg-alt);
+    border: 1px solid var(--rule);
+}
+.transport-mode-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--ink-soft);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 800;
+    min-height: 28px;
+    cursor: pointer;
+}
+.transport-mode-btn:hover {
+    color: var(--ink);
+}
+.transport-mode-btn.active {
+    background: var(--bg);
+    color: var(--ink);
+    box-shadow: var(--shadow-sm);
+}
 .land-metric-inline {
     margin-top: 10px;
 }
@@ -509,13 +343,13 @@ body.resizing-sidebar {
     font-size: 13px;
     color: var(--ink-soft);
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 0;
     transition: background 0.15s;
 }
 .ind-row:hover { background: var(--bg-alt); }
 .ind-radio {
     width: 14px; height: 14px;
-    border-radius: 50%;
+    border-radius: 0;
     border: 1.5px solid var(--ink-mute);
     flex-shrink: 0;
     background: var(--bg);
@@ -529,14 +363,14 @@ body.resizing-sidebar {
     content: "";
     position: absolute;
     inset: 2px;
-    border-radius: 50%;
+    border-radius: 0;
     background: var(--accent);
 }
 .ind-row.active { color: var(--ink); font-weight: 500; }
 
 .ind-checkbox {
     width: 14px; height: 14px;
-    border-radius: 3px;
+    border-radius: 0;
     border: 1.5px solid var(--ink-mute);
     flex-shrink: 0;
     background: var(--bg);
@@ -628,15 +462,15 @@ body.resizing-sidebar {
 }
 .selection-list {
     display: flex; flex-direction: column;
-    gap: 1px;
+    gap: 3px;
     margin-bottom: 5px;
-    max-height: 94px;
+    max-height: 118px;
     overflow-y: auto;
 }
 .selection-item {
     display: flex; align-items: center; gap: 6px;
     font-size: 12px;
-    padding: 2px 0;
+    padding: 3px 0;
 }
 .selection-dot {
     width: 9px; height: 9px;
@@ -655,16 +489,27 @@ body.resizing-sidebar {
     font-variant-numeric: tabular-nums;
 }
 .selection-remove {
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border: 1px solid transparent;
+    border-radius: 0;
+    background: transparent;
     color: var(--ink-mute);
     cursor: pointer;
-    padding: 0 4px;
-    font-size: 14px;
+    padding: 0;
+    font-size: 16px;
     line-height: 1;
+    flex: 0 0 auto;
 }
-.selection-remove:hover { color: var(--accent); }
+.selection-remove:hover {
+    color: var(--accent-strong);
+    border-color: var(--accent-soft);
+    background: var(--accent-wash);
+}
 .sel-chart {
     width: 100%;
-    height: 104px;
+    height: 126px;
     display: block;
     margin-top: 4px;
 }
@@ -673,7 +518,7 @@ body.resizing-sidebar {
     appearance: none;
     background: transparent;
     border: 1px solid var(--rule);
-    border-radius: 4px;
+    border-radius: 0;
     padding: 4px 8px;
     font-family: var(--font-sans);
     font-size: 11px;
@@ -696,8 +541,49 @@ body.resizing-sidebar {
     cursor: default;
     background: var(--bg-map);
 }
+.map-3d {
+    position: absolute;
+    inset: 0;
+    display: none;
+    z-index: 6;
+    pointer-events: none;
+}
+.map-area.visual-relief .map-3d {
+    display: block;
+    pointer-events: auto;
+}
+.map-3d canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+.map-3d-status {
+    position: absolute;
+    left: 18px;
+    bottom: 18px;
+    background: rgba(251, 246, 233, 0.94);
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 7px 9px;
+    box-shadow: var(--shadow-sm);
+}
 .map-background {
     fill: var(--bg-map);
+}
+.map .country-fill {
+    fill: #e7ece9;
+    stroke: rgba(43, 58, 66, 0.28);
+    stroke-width: 0.7;
+    pointer-events: none;
+    vector-effect: non-scaling-stroke;
+}
+.map.climate-mode .country-fill {
+    fill: #efe5ca;
+}
+.map.visual-relief .country-fill {
+    opacity: 0;
 }
 .map .municipio {
     fill-rule: evenodd;
@@ -721,18 +607,78 @@ body.resizing-sidebar {
 .map .ccaa-fill {
     stroke-width: 1;
 }
+.map .layer-bubbles,
+.map .layer-relief {
+    display: none;
+}
+.map.visual-bubbles .layer-bubbles,
+.map.visual-relief .layer-relief {
+    display: block;
+}
+.map.visual-bubbles .municipio,
+.map.visual-bubbles .provincia-fill,
+.map.visual-bubbles .ccaa-fill {
+    fill: rgba(255, 255, 255, 0.42);
+    fill-opacity: 0.45;
+    stroke: rgba(88, 99, 106, 0.18);
+    pointer-events: none;
+}
+.map.visual-relief .municipio,
+.map.visual-relief .provincia-fill,
+.map.visual-relief .ccaa-fill {
+    fill: rgba(255, 255, 255, 0.06);
+    fill-opacity: 0.08;
+    stroke: rgba(88, 99, 106, 0.05);
+    pointer-events: none;
+}
+.map.visual-relief .layer-municipios,
+.map.visual-relief .layer-provincias-fill,
+.map.visual-relief .layer-ccaa-fill,
+.map.visual-relief .layer-boundaries,
+.map.visual-relief .layer-insets {
+    opacity: 0;
+}
+.map .bubble-symbol {
+    cursor: pointer;
+    fill-opacity: 0.78;
+    stroke: rgba(255, 255, 255, 0.84);
+    stroke-width: 0.75;
+    vector-effect: non-scaling-stroke;
+}
+.map .bubble-symbol:hover {
+    stroke: var(--ink);
+    stroke-width: 1.8;
+    fill-opacity: 0.95;
+}
+.map .bubble-symbol.selected {
+    stroke: var(--accent);
+    stroke-width: 2.2;
+    fill-opacity: 0.98;
+}
 .map .municipio:hover {
-    stroke: #111;
+    stroke: var(--ink);
     stroke-width: 1.6;
 }
 .map .provincia-fill:hover,
 .map .ccaa-fill:hover {
-    stroke: #111;
+    stroke: var(--ink);
     stroke-width: 1.8;
 }
 .map .municipio.selected {
     stroke: var(--accent);
     stroke-width: 1.8;
+}
+.map.climate-mode .municipio {
+    stroke: rgba(255, 255, 255, 0.2);
+    stroke-width: 0.22;
+}
+.map.climate-mode .provincia-line {
+    stroke: rgba(43, 58, 66, 0.48);
+    stroke-width: 0.95;
+}
+.map.climate-mode .ccaa-line {
+    stroke: rgba(35, 45, 52, 0.68);
+    stroke-width: 1.2;
 }
 .map .provincia-line {
     fill: none;
@@ -825,6 +771,11 @@ body.resizing-sidebar {
     stroke: rgba(255,255,255,0.52);
     stroke-width: 0.34;
 }
+.map.route-mode .municipio.selected {
+    fill: rgba(192, 57, 43, 0.18);
+    stroke: var(--accent);
+    stroke-width: 1.8;
+}
 .map.route-mode .provincia-line {
     stroke: rgba(255,255,255,0.78);
     stroke-width: 1.05;
@@ -835,6 +786,50 @@ body.resizing-sidebar {
 }
 
 /* ── Map controls ── */
+.visual-controls {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    display: flex;
+    gap: 4px;
+    z-index: 9;
+    background: rgba(251, 246, 233, 0.94);
+    border: 1px solid var(--rule);
+    box-shadow: var(--shadow-sm);
+    padding: 3px;
+}
+.visual-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--ink-soft);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    min-height: 29px;
+    min-width: 54px;
+    padding: 0 10px;
+    cursor: pointer;
+}
+.visual-btn:hover {
+    color: var(--ink);
+    background: var(--bg-alt);
+}
+.visual-btn.active {
+    background: var(--ink);
+    color: var(--bg);
+}
+.visual-btn:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+}
+.visual-btn:disabled:hover {
+    color: var(--ink-soft);
+    background: transparent;
+}
+
 .map-controls {
     position: absolute;
     top: 16px; right: 16px;
@@ -846,7 +841,7 @@ body.resizing-sidebar {
     appearance: none;
     background: var(--bg);
     border: 1px solid var(--rule);
-    border-radius: 999px;
+    border-radius: 0;
     padding: 6px 14px;
     font-family: var(--font-sans);
     font-size: 12px;
@@ -865,7 +860,7 @@ body.resizing-sidebar {
     pointer-events: none;
     background: var(--bg);
     border: 1px solid var(--rule);
-    border-radius: 4px;
+    border-radius: 0;
     padding: 10px 12px;
     box-shadow: var(--shadow-md);
     font-size: 12px;
@@ -898,7 +893,7 @@ body.resizing-sidebar {
     padding-top: 4px;
     border-top: 1px solid var(--rule-soft);
 }
-.tooltip-value strong { color: var(--ink); font-weight: 600; }
+.tooltip-value strong { color: var(--ink); font-weight: 600; margin-left: 10px; }
 
 /* ── Loading overlay ── */
 .loading {
@@ -931,7 +926,7 @@ body.resizing-sidebar {
     width: 280px;
     height: 3px;
     background: var(--rule);
-    border-radius: 2px;
+    border-radius: 0;
     overflow: hidden;
 }
 .loading-bar-fill {
@@ -966,7 +961,7 @@ body.resizing-sidebar {
     appearance: none;
     width: 40px; height: 40px;
     border: 1px solid var(--rule);
-    border-radius: 50%;
+    border-radius: 0;
     background: var(--bg);
     color: var(--ink);
     cursor: pointer;
@@ -1059,7 +1054,7 @@ body.resizing-sidebar {
     right: 14px;
     bottom: 14px;
     z-index: 8;
-    background: rgba(255,255,255,0.86);
+    background: rgba(251,246,233,0.92);
     border: 1px solid var(--rule);
     color: var(--ink-soft);
     font-size: 11px;
@@ -1083,7 +1078,7 @@ body.resizing-sidebar {
     width: min(460px, calc(100vw - 40px));
     max-height: 310px;
     overflow: auto;
-    background: rgba(255,255,255,0.98);
+    background: rgba(251,246,233,0.98);
     border: 1px solid var(--rule);
     box-shadow: var(--shadow-md);
     color: var(--ink-soft);
@@ -1174,11 +1169,11 @@ body.resizing-sidebar {
 }
 .muni-search-result:hover {
     border-color: var(--accent-soft);
-    background: #fff9f7;
+    background: var(--bg-alt);
 }
 .muni-search-result.active {
     border-color: var(--accent-soft);
-    background: #fff7f4;
+    background: var(--accent-wash);
 }
 .muni-search-result strong {
     display: block;
@@ -1309,7 +1304,7 @@ body.show-data .data-view {
     top: 0;
     align-self: start;
     border-left: 1px solid var(--rule);
-    background: rgba(255,255,255,0.98);
+    background: rgba(251,246,233,0.98);
     min-height: 430px;
     max-height: calc(100vh - var(--topbar-h) - var(--timebar-h) - 86px);
     overflow: visible;
@@ -1508,7 +1503,7 @@ body.show-data .data-view {
 }
 .trend-dropdown-option.active {
     border-left-color: var(--accent);
-    background: rgba(188, 65, 45, 0.06);
+    background: var(--accent-wash);
     color: var(--ink);
     font-weight: 800;
 }
@@ -1546,7 +1541,7 @@ body.show-data .data-view {
 .trend-selected-chip .selection-dot {
     width: 8px;
     height: 8px;
-    border-radius: 999px;
+    border-radius: 50%;
     flex: 0 0 auto;
 }
 .trend-selected-chip button {
@@ -1697,7 +1692,7 @@ body.show-data .data-view {
     display: none;
     min-width: 150px;
     max-width: 260px;
-    background: rgba(255,255,255,0.98);
+    background: rgba(251,246,233,0.98);
     border: 1px solid var(--rule);
     box-shadow: var(--shadow-md);
     color: var(--ink-soft);
@@ -1816,6 +1811,7 @@ body.show-about .about-view {
     font-family: var(--font-serif);
     font-size: 32px;
     line-height: 1.15;
+    letter-spacing: -0.012em;
 }
 .about-intro p {
     margin: 0;
@@ -1920,7 +1916,7 @@ body.show-about .about-view {
 .about-indicator-card:hover,
 .about-indicator-card.open {
     border-color: var(--accent-soft);
-    background: #fffaf8;
+    background: var(--accent-wash);
 }
 .about-indicator-card .card-kicker {
     font-size: 9px;
@@ -1966,17 +1962,6 @@ body.show-about .about-view {
     .nav-btn { padding: 8px 9px; font-size: 10px; }
 }
 @media (max-width: 880px) {
-    .intro-view { padding: 24px 18px 24px; align-items: flex-end; }
-    .intro-map-stage {
-        background:
-            linear-gradient(0deg, rgba(17,21,19,0.99) 0%, rgba(17,21,19,0.88) 36%, rgba(17,21,19,0.2) 70%, rgba(17,21,19,0.06) 100%),
-            #243130;
-    }
-    .intro-copy { width: min(100%, 520px); transform: translateY(0); }
-    .intro-kicker { font-size: 18px; }
-    .intro-copy h1 { font-size: clamp(30px, 10vw, 38px); }
-    .intro-copy p { font-size: 13px; line-height: 1.55; }
-    .intro-actions { margin-bottom: 0; }
     .topbar { padding: 0 46px 0 12px; gap: 10px; }
     .topbar-left { min-width: auto; }
     .topbar-nav {
@@ -2026,6 +2011,270 @@ body.show-about .about-view {
     .about-grid { grid-template-columns: 1fr; }
     .method-row { grid-template-columns: 1fr; gap: 6px; }
     .map-controls { top: 10px; right: 10px; }
+    .visual-controls { top: 10px; left: 10px; max-width: calc(100vw - 144px); overflow-x: auto; }
+    .visual-btn { min-width: 48px; padding: 0 8px; font-size: 10px; }
     .map-source-trigger { right: 10px; bottom: 10px; }
     .map-source-panel { width: calc(100vw - 40px); }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   2026-09 mobile / interaction pass
+   F01 stacked layout · F02 pointer events · F04 zoom+pan
+   F07 visible "Limpiar seleccion" · F10 tap targets
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── F04: zoom & pan ── */
+.map { touch-action: none; }
+.map.is-zoomed { cursor: grab; }
+.map .map-root path,
+.map .map-root circle { vector-effect: non-scaling-stroke; }
+
+.zoom-controls {
+    position: absolute;
+    right: 16px;
+    bottom: 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 9;
+}
+.zoom-btn {
+    appearance: none;
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(251,246,233,0.96);
+    border: 1px solid var(--rule);
+    border-radius: 0;
+    box-shadow: var(--shadow-sm);
+    font-family: var(--font-sans);
+    font-size: 17px;
+    line-height: 1;
+    color: var(--ink-soft);
+    cursor: pointer;
+}
+.zoom-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── F02: timeline is pointer-driven, so the browser must not pan/scroll ── */
+.timeline { touch-action: none; }
+.timeline-handle { width: 20px; height: 20px; }
+.timebar-inner { grid-template-columns: auto auto 1fr auto auto; }
+.year-step { display: flex; gap: 4px; }
+.year-step-btn {
+    appearance: none;
+    width: 34px; height: 34px;
+    border: 1px solid var(--rule);
+    border-radius: 0;
+    background: var(--bg);
+    color: var(--ink-soft);
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+}
+.year-step-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── F07: the clear button is a real, visible control ── */
+.clear-btn {
+    display: none;
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    border-color: var(--accent-soft);
+    background: var(--bg);
+}
+.clear-btn:hover { background: var(--accent-soft); color: var(--accent-strong); }
+
+/* ── F01: bottom-sheet toggle (mobile only) ── */
+.sheet-toggle { display: none; }
+
+/* ═══════════ <= 880 px: map on top, sidebar as a bottom sheet ═══════════ */
+@media (max-width: 880px) {
+    .layout {
+        flex-direction: column;
+        bottom: var(--timebar-h);
+    }
+    .map-area {
+        order: 1;
+        flex: 1 1 auto;
+        min-height: 0;
+        width: 100%;
+    }
+    .sidebar {
+        order: 2;
+        width: 100%;
+        max-width: none;
+        flex: 0 0 auto;
+        max-height: 38dvh;
+        border-right: 0;
+        border-top: 1px solid var(--rule);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+    .layout.sheet-collapsed .sidebar {
+        max-height: 44px;
+        overflow: hidden;
+    }
+    .legend-section { margin-top: 0; }
+    .sidebar-resizer { display: none; }
+
+    .sheet-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        width: 100%;
+        min-height: 44px;
+        padding: 0 16px;
+        appearance: none;
+        border: 0;
+        border-bottom: 1px solid var(--rule-soft);
+        background: var(--bg);
+        font-family: var(--font-sans);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        cursor: pointer;
+    }
+    .sheet-toggle::after { content: "\25BC"; font-size: 10px; }
+    .layout.sheet-collapsed .sheet-toggle::after { content: "\25B2"; }
+
+    /* F05: the two control clusters no longer collide */
+    .visual-controls { top: 8px; left: 8px; padding: 2px; }
+    .map-controls { top: 8px; right: 8px; bottom: auto; left: auto; flex-direction: column; gap: 5px; }
+    .zoom-controls { right: 8px; bottom: 46px; flex-direction: column; }
+
+    /* Timebar on two rows so the timeline keeps the full width */
+    :root { --timebar-h: 104px; }
+    .timebar-inner {
+        grid-template-columns: auto 1fr auto;
+        grid-template-areas: "play year step" "tl tl tl";
+        gap: 4px 12px;
+        padding: 6px 26px;
+    }
+    .play-btn { grid-area: play; }
+    .timebar-year-label { grid-area: year; font-size: 24px; min-width: 0; }
+    .year-step { grid-area: step; }
+    .timeline { grid-area: tl; height: 40px; }
+    .timebar-spacer { display: none; }
+
+    /* F10: 44 px tap targets */
+    .nav-btn { min-height: 44px; font-size: 11px; padding: 0 10px; }
+    .cat-tab { min-height: 44px; font-size: 12px; }
+    .visual-btn { min-height: 44px; font-size: 11px; }
+    .map-btn { min-height: 44px; padding: 8px 14px; }
+    .indicator-select, select.indicator-select { min-height: 44px; }
+    .info-btn { min-width: 44px; min-height: 44px; }
+    .zoom-btn, .year-step-btn { width: 44px; height: 44px; }
+    .play-btn { width: 44px; height: 44px; }
+    .timeline { height: 44px; }
+    .muni-search-box input { min-height: 44px; font-size: 14px; }
+    .muni-search-box button,
+    #trend-muni-search-clear { min-width: 44px; min-height: 44px; }
+    .selection-remove { min-width: 32px; min-height: 32px; }
+    .clear-btn { min-height: 44px; }
+    .about-back { min-height: 44px; }
+    .trend-sidebar-toggle { min-height: 44px; }
+    .trend-dropdown-trigger { min-height: 44px; }
+    .selection-remove { min-width: 44px; min-height: 44px; }
+    .trend-selected-chip { min-height: 44px; }
+    .trend-selected-chip button { min-width: 32px; min-height: 44px; }
+    .kicker, .timeline-tick-label { font-size: 11px; }
+}
+
+/* ═══════════ 100dvh where iOS Safari needs it ═══════════ */
+@supports (height: 100dvh) {
+    html, body { height: 100dvh; }
+}
+
+/* Share / export / reset: the three controls that make the atlas citable.
+   They live at the right end of the view row (second line of the top bar), so
+   they never compete with the category tabs on the first line. */
+.topbar-actions {
+    position: absolute;
+    top: var(--topbar-main-h);
+    right: 12px;
+    height: calc(var(--topbar-h) - var(--topbar-main-h));
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 2;
+    background: var(--bg);
+    padding-left: 8px;
+}
+.act-btn {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: 0;
+    padding: 5px 9px;
+    min-height: 26px;
+    font-family: var(--font-sans);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    white-space: nowrap;
+}
+.act-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--bg-alt); }
+.act-btn:disabled { color: var(--accent); border-color: var(--accent); cursor: default; }
+/* Reserve the room the actions take, so the view tabs never slide underneath. */
+.topbar-nav { right: 276px; }
+@media (max-width: 1240px) {
+    .act-btn { padding: 5px 7px; letter-spacing: 0.06em; }
+    .topbar-nav { right: 244px; }
+}
+@media (max-width: 980px) {
+    .act-btn#act-reset { display: none; }
+    .topbar-nav { right: 182px; }
+}
+@media (max-width: 760px) {
+    .topbar-actions { gap: 3px; right: 8px; }
+    .act-btn { min-height: 30px; padding: 5px 6px; font-size: 9px; }
+    .act-btn#act-png { display: none; }
+    .topbar-nav { right: 120px; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   Foco de teclado visible (2026-09)
+   Se declara al final para ganar a los `outline: none` locales.
+   ═══════════════════════════════════════════════════════════ */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible,
+.map-source-trigger:focus-visible,
+.indicator-select:focus-visible,
+.map .municipio:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ESQUINAS — 2026-09
+   Toda la interfaz va a `border-radius: 0`. Las unicas curvas vivas
+   en esta hoja, y por que:
+     · .selection-dot y .trend-selected-chip .selection-dot (50 %) —
+       son PUNTOS DE DATO: la muestra de color de la serie de cada
+       municipio, la misma marca que se dibuja en el grafico.
+     · .timeline-handle (50 %) — asa de arrastre de la linea de tiempo.
+   No hay ninguna excepcion mas. Se cuadraron tambien .ind-radio y
+   .ind-radio::after, que eran los unicos circulos de interfaz que
+   quedaban: son CSS muerto (ni index.html ni js/app.js pintan .ind-row,
+   la lista de indicadores es hoy un <select class="indicator-select">),
+   asi que cuadrarlos no le quita al usuario la distincion entre elegir
+   uno y elegir varios. Si algun dia se reviven esas filas, habra que
+   resolver esa distincion sin recurrir al circulo.
+   Los puntos del grafico (.data-dot, r) y los circulos SVG de los mapas
+   son geometria de datos dibujada en js/, no llevan border-radius.
+   ═══════════════════════════════════════════════════════════ */

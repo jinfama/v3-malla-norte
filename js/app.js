@@ -8,6 +8,7 @@ const state = {
     municipios: null,         // GeoJSON convertido desde topojson
     provincias: null,
     comunidades: null,
+    country: null,
     overlays: {},             // overlays cargados (calzadas, etc.)
     sources: {                // each entry: null until lazy-loaded
         'historeco.json': null,
@@ -21,6 +22,8 @@ const state = {
     category: "poblacion",
     indicator: "pob",
     mainTab: "map",
+    visualMode: "choropleth", // choropleth | bubbles | relief
+    transportMode: "networks", // networks | distances
     activeOverlays: new Set(),// overlays activos en transporte
     viewLevel: "mun",         // mun | prov | ccaa
     selectedInes: [],
@@ -46,7 +49,12 @@ let YEAR_MIN = 1900, YEAR_MAX = 2025;
 // quintil bajo = beige tenue (visible sobre el azul-gris del mar),
 // quintil alto = rojo profundo (las ciudades destacan).
 const POP_COLORS = ["#fbe8c2", "#fbc887", "#f59055", "#d44e2a", "#7d1f0d"];
-const CAMBIO_COLORS = ["#1f3a5f", "#5781a8", "#a8c6dd", "#f2efe9", "#e9b694", "#b35a32", "#5e1a0c"];
+const CAMBIO_COLORS = ["#7d1f0d", "#b35a32", "#e9b694", "#f2efe9", "#a8c6dd", "#5781a8", "#1f3a5f"];
+const DISTANCE_COLORS = ["#14836f", "#79b96c", "#f0d28a", "#e37a3f", "#8d2418"];
+const CLIMATE_PRECIP_COLORS = ["#f0e6c9", "#d7bf78", "#a9c481", "#65adb1", "#2d7fb8", "#0c4f82"];
+const CLIMATE_TEMP_COLORS = ["#31688e", "#6ba8c4", "#d8d8bd", "#efb466", "#c85b3e", "#7d1f1a"];
+const CLIMATE_FROST_COLORS = ["#f3e8cf", "#d7d6bf", "#a4c8d1", "#659dc4", "#346aa0", "#343b64"];
+const CLIMATE_DIVERGING_COLORS = ["#94331f", "#d08b57", "#ece8d8", "#9cc8d9", "#2d6f9f"];
 const LINE_COLORS = ["#c0392b", "#2b5797", "#2d8659", "#7d4ba0", "#c97f1c", "#475569", "#9b1d1d", "#0e7490"];
 const NO_DATA_COLOR = "#e4e8ec";
 const CLIMATE_MONTHLY_SOURCE = "clima_mensual_andalucia.json";
@@ -62,7 +70,6 @@ const CATEGORY_DEF = [
     { id: 'hidrologia', label: 'Hidrología', icon: '<path fill="currentColor" d="M12 2C8 6 4 10 4 14a8 8 0 0016 0c0-4-4-8-8-12z"/>' },
     { id: 'geografia',  label: 'Geografía',  icon: '<path fill="currentColor" d="M14 6l-4.22 5.63 1.25 1.67L14 9.33 19 16H5.76l3.27-4.36L9.78 11 11 12.42 5 20h14l-5-8z"/>' },
     { id: 'transporte', label: 'Transporte', icon: '<path fill="currentColor" d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2zM18 14l4 3-4 3v-6z"/>' },
-    { id: 'transporte_historico', label: 'Histórico', icon: '<path fill="currentColor" d="M3 4h18v2H3zm0 4h18v2H3zm0 4h18v2H3zm0 4h12v2H3zm14 0h4v2h-4z"/>' },
 ];
 
 // Categories with type='derived' have computed indicators (densidad, cambio etc.)
@@ -136,21 +143,21 @@ function buildCategoriesFromCatalog() {
         indicators: Object.entries(DERIVED_INDICATORS).map(([id, m]) => ({ id, name: m.name, desc: m.desc })),
         default: 'pob',
     };
-    // Transporte = overlay layers (lines, not choropleth) + 2 distance choropleths from historeco
+    // Transporte = redes vectoriales + indicadores de distancia en la misma seccion.
     out.transporte = {
         label: 'Transporte',
-        type: 'mixed', // overlays + indicator pills both available
+        type: 'mixed',
         indicators: OVERLAY_INDICATORS.map(o => ({ ...o, kind: 'overlay' })),
         default: null,
         autoOverlays: OVERLAY_INDICATORS.map(o => o.id),
-        // Plus distance-based choropleths from historeco
-        choroplethExtras: [],
+        distanceDefault: null,
     };
     // The rest of the categories come straight from the catalog
     for (const ind of state.catalog.indicators) {
         let cat = ind.category;
         if (cat === 'poblacion') continue;       // already handled
         if (cat === 'demografia') cat = 'poblacion';
+        if (cat === 'transporte_historico') cat = 'transporte';
         if (cat === 'usos_suelo' && isLandUseShareIndicatorId(ind.id)) continue;
         if (!out[cat]) {
             out[cat] = {
@@ -171,18 +178,18 @@ function buildCategoriesFromCatalog() {
         });
         if (!out[cat].default && cat !== 'transporte') out[cat].default = ind.id;
     }
-    // Move transport indicators from catalog (highspeed, airport) into the transporte category
-    if (out.transporte_historico) {
-        // 'transporte_historico' = single calzada indicator. Merge with 'transporte'? Keep separate for now.
-    }
+    out.transporte.distanceDefault = out.transporte.indicators.find(i => i.kind === 'distance')?.id || null;
     CATEGORIES = out;
 }
+
+// Spanish (es-ES) number formatting for every d3.format call in this file.
+d3.formatDefaultLocale({ decimal: ",", thousands: ".", grouping: [3], currency: ["", " €"] });
 
 const $ = (s) => document.querySelector(s);
 const map = d3.select("#map");
 const tooltip = $("#tooltip");
 
-let projection, pathGen, pathGenMain, pathGenCanarias;
+let projection, projectionCanarias, pathGen, pathGenMain, pathGenCanarias;
 let mapSize = { w: 0, h: 0 };
 let insetFrames = [];
 
@@ -281,10 +288,17 @@ function buildAdminLayersFromMunicipalTopo(munTopo, pob) {
     const provinceGroups = new Map();
     const ccaaGroups = new Map();
     const provinceToCcaa = new Map();
+    const countryMainGeometries = [];
+    const countryCanaryGeometries = [];
 
     object.geometries.forEach(g => {
         const m = pob.municipios[g.properties?.ine];
         if (!isMuniIncluded(m) || !m.prov || !m.ccaa_code) return;
+        if (m.ccaa_code === "05" || m.prov === "35" || m.prov === "38") {
+            countryCanaryGeometries.push(g);
+        } else {
+            countryMainGeometries.push(g);
+        }
         if (!provinceGroups.has(m.prov)) provinceGroups.set(m.prov, []);
         if (!ccaaGroups.has(m.ccaa_code)) ccaaGroups.set(m.ccaa_code, []);
         provinceGroups.get(m.prov).push(g);
@@ -317,6 +331,22 @@ function buildAdminLayersFromMunicipalTopo(munTopo, pob) {
             geometry: stripInteriorRings(topojson.merge(munTopo, geometries)),
         })).sort((a, b) => a.properties.code.localeCompare(b.properties.code)),
     };
+
+    state.country = {
+        type: "FeatureCollection",
+        features: [
+            countryMainGeometries.length && {
+                type: "Feature",
+                properties: { code: "ES", name: "Espana" },
+                geometry: stripInteriorRings(topojson.merge(munTopo, countryMainGeometries)),
+            },
+            countryCanaryGeometries.length && {
+                type: "Feature",
+                properties: { code: "05", name: "Canarias", inset: "canarias" },
+                geometry: stripInteriorRings(topojson.merge(munTopo, countryCanaryGeometries)),
+            },
+        ].filter(Boolean),
+    };
 }
 
 // Lazy-load a non-population source file (historeco, usos_suelo, calzada).
@@ -330,6 +360,8 @@ async function loadSource(filename) {
     state.sources[filename] = data;
     _scaleCache.clear();
     _aggregateCache.clear();
+    _displayValueCache.clear();
+    _indicatorDisplayYearsCache.clear();
     return data;
 }
 
@@ -348,6 +380,28 @@ function indicatorYears(indId) {
     const data = state.sources[src];
     if (!data) return null;       // not loaded yet
     return data.years || null;     // calzada has no years → null = single value
+}
+
+function indicatorDisplayYears(indId) {
+    if (DERIVED_INDICATORS[indId]) return indicatorYears(indId);
+    const src = indicatorSourceFile(indId);
+    const years = indicatorYears(indId);
+    if (!src || !years) return years;
+    const cacheKey = `${src}|${indId}`;
+    if (_indicatorDisplayYearsCache.has(cacheKey)) return _indicatorDisplayYearsCache.get(cacheKey);
+    const data = state.sources[src];
+    if (!data?.data) return years;
+    const out = years.filter((_, i) => {
+        for (const muni of Object.values(data.data)) {
+            const v = muni?.[indId];
+            if (Array.isArray(v) && Number.isFinite(v[i])) return true;
+            if (!Array.isArray(v) && Number.isFinite(v)) return true;
+        }
+        return false;
+    });
+    const resolved = out.length ? out : years;
+    _indicatorDisplayYearsCache.set(cacheKey, resolved);
+    return resolved;
 }
 
 // Get the time series of an indicator at a given municipio. Returns array or null.
@@ -538,6 +592,9 @@ function setupProjection() {
     const w = Math.max(rect.width, 100);
     const h = Math.max(rect.height, 100);
     mapSize = { w, h };
+    _mapMaskCache = null;
+    _featurePathCache = new WeakMap();
+    _featurePointCache = new WeakMap();
     map.attr("viewBox", `0 0 ${w} ${h}`).attr("preserveAspectRatio", "xMidYMid meet");
 
     const insetCodes = new Set(["35", "38"]);
@@ -554,7 +611,10 @@ function setupProjection() {
     projection = fitMercatorByBounds(mainFeatures, [[pad, pad], [w - pad, mainBottom]]);
     pathGenMain = (feature) => featurePath(feature, projection);
 
-    pathGenCanarias = fitPath(canarias, [[canaryX + 10, canaryY + 18], [canaryX + canaryW - 10, canaryY + canaryH - 10]]);
+    projectionCanarias = canarias.length
+        ? fitMercatorByBounds(canarias, [[canaryX + 10, canaryY + 18], [canaryX + canaryW - 10, canaryY + canaryH - 10]])
+        : null;
+    pathGenCanarias = projectionCanarias ? (feature) => featurePath(feature, projectionCanarias) : null;
 
     insetFrames = [
         pathGenCanarias && { label: "Canarias", x: canaryX, y: canaryY, w: canaryW, h: canaryH },
@@ -569,8 +629,42 @@ function setupProjection() {
     };
 }
 
+// ───────── Map zoom & pan (d3.zoom on the <g class="map-root">) ─────────
+let _mapZoom = null;
+let _mapZoomTransform = d3.zoomIdentity;
+
+function setupMapZoom() {
+    const root = map.select("g.map-root");
+    if (root.empty()) return;
+    if (!_mapZoom) {
+        _mapZoom = d3.zoom()
+            .scaleExtent([1, 14])
+            .on("zoom", (event) => {
+                _mapZoomTransform = event.transform;
+                map.select("g.map-root").attr("transform", event.transform);
+                map.classed("is-zoomed", event.transform.k > 1.01);
+            });
+    }
+    map.call(_mapZoom);
+    // Restore the current view after a re-render (indicator / level / resize).
+    map.property("__zoom", _mapZoomTransform);
+    root.attr("transform", _mapZoomTransform);
+    map.classed("is-zoomed", _mapZoomTransform.k > 1.01);
+}
+
+function mapZoomBy(factor) {
+    if (!_mapZoom) return;
+    map.transition().duration(220).call(_mapZoom.scaleBy, factor);
+}
+
+function mapZoomReset() {
+    if (!_mapZoom) return;
+    map.transition().duration(260).call(_mapZoom.transform, d3.zoomIdentity);
+}
+
 function renderInsetFrames() {
-    const g = map.append("g").attr("class", "layer-insets");
+    const g = (map.select("g.map-root").empty() ? map : map.select("g.map-root"))
+        .append("g").attr("class", "layer-insets");
     g.selectAll("rect")
         .data(insetFrames)
         .enter().append("rect")
@@ -588,198 +682,26 @@ function renderInsetFrames() {
         .text(d => d.label);
 }
 
-function setupIntro() {
-    const intro = $("#intro-view");
-    if (!intro) return;
-    const enter = $("#intro-enter");
-    let introMotionFrame = null;
-    let introPointer = { x: 0, y: 0 };
-
-    const moveIntroCompass = () => {
-        introMotionFrame = null;
-        const orbit = intro.querySelector(".intro-compass-orbit");
-        if (!orbit) return;
-        const strength = Math.min(intro.clientWidth, intro.clientHeight) < 700 ? 10 : 18;
-        orbit.setAttribute("transform", `translate(${introPointer.x * strength},${introPointer.y * strength})`);
-    };
-
-    const queueIntroCompassMove = (event) => {
-        const rect = intro.getBoundingClientRect();
-        introPointer = {
-            x: ((event.clientX - rect.left) / rect.width - 0.5) * 2,
-            y: ((event.clientY - rect.top) / rect.height - 0.5) * 2,
-        };
-        if (!introMotionFrame) introMotionFrame = requestAnimationFrame(moveIntroCompass);
-    };
-
-    const resetIntroCompass = () => {
-        introPointer = { x: 0, y: 0 };
-        if (!introMotionFrame) introMotionFrame = requestAnimationFrame(moveIntroCompass);
-    };
-
-    const closeIntro = () => {
-        intro.classList.add("hidden");
-        document.body.classList.add("intro-dismissed");
-    };
-    enter?.addEventListener("click", closeIntro);
-    intro.addEventListener("pointermove", queueIntroCompassMove);
-    intro.addEventListener("pointerleave", resetIntroCompass);
-}
-
-function renderIntroMap() {
-    const introSvg = d3.select("#intro-map");
-    if (introSvg.empty() || !state.municipios || !state.provincias || !state.comunidades) return;
-    const node = introSvg.node();
-    const rect = node.getBoundingClientRect();
-    const w = Math.max(rect.width, 640);
-    const h = Math.max(rect.height, 420);
-    introSvg.attr("viewBox", `0 0 ${w} ${h}`).selectAll("*").remove();
-
-    const isCanariasFeature = (feature) => feature.properties?.inset === "canarias" || ["35", "38"].includes(provinceCode(feature)) || feature.properties?.code === "05";
-    const introMunicipios = state.municipios.features.filter(f => !isCanariasFeature(f));
-    const introProvincias = state.provincias.features.filter(f => !isCanariasFeature(f));
-    const introComunidades = state.comunidades.features.filter(f => !isCanariasFeature(f));
-    const compactIntro = rect.width < 760 || rect.height < 620;
-    const mapBounds = compactIntro
-        ? [[w * 0.1, h * 0.08], [w * 0.9, h * 0.6]]
-        : [[w * 0.22, h * 0.05], [w * 0.78, h * 0.68]];
-    const projMain = fitMercatorByBounds(introMunicipios, mapBounds);
-    const introPath = (feature) => featurePath(feature, projMain);
-
-    const defs = introSvg.append("defs");
-    const glow = defs.append("filter")
-        .attr("id", "intro-glow")
-        .attr("x", "-40%")
-        .attr("y", "-40%")
-        .attr("width", "180%")
-        .attr("height", "180%");
-    glow.append("feGaussianBlur").attr("stdDeviation", 2.4).attr("result", "blur");
-    glow.append("feColorMatrix")
-        .attr("in", "blur")
-        .attr("type", "matrix")
-        .attr("values", "1 0 0 0 0.96  0 1 0 0 0.62  0 0 1 0 0.18  0 0 0 0.9 0")
-        .attr("result", "glow");
-    const merge = glow.append("feMerge");
-    merge.append("feMergeNode").attr("in", "glow");
-    merge.append("feMergeNode").attr("in", "SourceGraphic");
-
-    introSvg.append("rect")
-        .attr("class", "intro-sea")
-        .attr("width", w)
-        .attr("height", h);
-
-    const scan = introSvg.append("g").attr("class", "intro-scan");
-    for (let x = -w; x < w * 2; x += 34) {
-        scan.append("line")
-            .attr("x1", x)
-            .attr("x2", x + h * 0.45)
-            .attr("y1", 0)
-            .attr("y2", h)
-            .attr("stroke", "rgba(255,248,234,0.055)")
-            .attr("stroke-width", 1);
-    }
-
-    const old1 = introSvg.append("g").attr("class", "intro-plate intro-plate-1");
-    old1.selectAll("path")
-        .data(introComunidades)
-        .enter().append("path")
-        .attr("class", "intro-old-fill")
-        .attr("d", introPath);
-
-    const old2 = introSvg.append("g").attr("class", "intro-plate intro-plate-2");
-    old2.selectAll("path")
-        .data(introProvincias)
-        .enter().append("path")
-        .attr("class", "intro-old-line")
-        .attr("d", introPath);
-
-    const modern = introSvg.append("g").attr("class", "intro-modern");
-    modern.selectAll("path.intro-modern-fill")
-        .data(introMunicipios)
-        .enter().append("path")
-        .attr("class", "intro-modern-fill")
-        .attr("d", introPath);
-    modern.selectAll("path.intro-modern-border")
-        .data(introComunidades)
-        .enter().append("path")
-        .attr("class", "intro-modern-border")
-        .attr("d", introPath);
-    modern.selectAll("path.intro-coast")
-        .data(introComunidades)
-        .enter().append("path")
-        .attr("class", "intro-coast")
-        .attr("d", introPath);
-
-    renderIntroCompass(introSvg, w, h, mapBounds);
-}
-
-function renderIntroCompass(svg, w, h, mapBounds) {
-    const [[x0, y0], [x1, y1]] = mapBounds;
-    const cx = (x0 + x1) / 2;
-    const cy = (y0 + y1) / 2;
-    const r = Math.min(x1 - x0, y1 - y0, Math.min(w, h) * 0.52) * 0.43;
-    const compass = svg.append("g")
-        .attr("class", "intro-time-compass")
-        .attr("transform", `translate(${cx},${cy})`);
-    const orbit = compass.append("g").attr("class", "intro-compass-orbit");
-    orbit.append("circle").attr("class", "intro-compass-ring").attr("r", r);
-    orbit.append("circle").attr("class", "intro-compass-ring inner").attr("r", r * 0.72);
-    orbit.append("circle").attr("class", "intro-compass-ring inner").attr("r", r * 0.43);
-
-    const rotor = compass.append("g").attr("class", "intro-compass-rotor");
-    rotor.append("animateTransform")
-        .attr("attributeName", "transform")
-        .attr("type", "rotate")
-        .attr("from", "0")
-        .attr("to", "360")
-        .attr("dur", "10s")
-        .attr("repeatCount", "indefinite");
-    rotor.append("path")
-        .attr("class", "intro-compass-sweep")
-        .attr("d", d3.arc()
-            .innerRadius(r * 0.1)
-            .outerRadius(r * 0.92)
-            .startAngle(-0.2)
-            .endAngle(0.2)());
-    rotor.append("line").attr("class", "intro-compass-hand").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", -r * 0.92);
-    rotor.append("line").attr("class", "intro-compass-hand alt").attr("x1", 0).attr("y1", 0).attr("x2", r * 0.6).attr("y2", 0);
-    rotor.append("circle").attr("r", 5).attr("fill", "#f7d46f");
-
-    const eras = [
-        { year: "1570", a: -120 },
-        { year: "1788", a: -52 },
-        { year: "1857", a: 14 },
-        { year: "1900", a: 82 },
-        { year: "2025", a: 148 },
-    ];
-    eras.forEach((era, i) => {
-        const a = era.a * Math.PI / 180;
-        const x = Math.cos(a) * r;
-        const y = Math.sin(a) * r;
-        const g = orbit.append("g").attr("class", "intro-era-mark").attr("transform", `translate(${x},${y})`);
-        g.append("circle")
-            .attr("r", 3)
-            .style("animation-delay", `${i * 1.4}s`);
-        g.append("text")
-            .attr("y", y < 0 ? -16 : 16)
-            .text(era.year);
-    });
-}
-
 // Render municipios en chunks para no bloquear el hilo principal
 async function renderMapProgressive() {
     setupProjection();
     map.selectAll("*").remove();
     applyViewLevelClass();
+    applyVisualModeClass();
     map.append("rect")
         .attr("class", "map-background")
         .attr("width", mapSize.w)
         .attr("height", mapSize.h);
-    map.append("g").attr("class", "layer-municipios");
-    map.append("g").attr("class", "layer-provincias-fill");
-    map.append("g").attr("class", "layer-ccaa-fill");
-    map.append("g").attr("class", "layer-boundaries");
-    map.append("g").attr("class", "layer-overlays");
+    const mapRoot = map.append("g").attr("class", "map-root");
+    mapRoot.append("g").attr("class", "layer-country-fill");
+    mapRoot.append("g").attr("class", "layer-municipios");
+    mapRoot.append("g").attr("class", "layer-provincias-fill");
+    mapRoot.append("g").attr("class", "layer-ccaa-fill");
+    mapRoot.append("g").attr("class", "layer-relief");
+    mapRoot.append("g").attr("class", "layer-boundaries");
+    mapRoot.append("g").attr("class", "layer-bubbles");
+    mapRoot.append("g").attr("class", "layer-overlays");
+    setupMapZoom();
 
     const feats = state.municipios.features;
     const total = feats.length;
@@ -788,6 +710,13 @@ async function renderMapProgressive() {
     const colorFn = useChoropleth ? colorScaleFor(state.indicator) : null;
     const layer = state.indicator;
     const groupedValues = useChoropleth ? aggregateValuesForLevel(state.viewLevel, layer, currentYear()) : null;
+
+    map.select("g.layer-country-fill")
+        .selectAll("path.country-fill")
+        .data(state.country?.features || [])
+        .enter().append("path")
+        .attr("class", "country-fill")
+        .attr("d", pathGen);
 
     const gMun = map.select("g.layer-municipios");
     for (let i = 0; i < total; i += CHUNK) {
@@ -877,7 +806,7 @@ function interpSeries(series, years, year) {
         }
     }
     if (lo < 0 && hi < 0) return null;
-    if (lo < 0) return series[hi];
+    if (lo < 0) return null;
     if (hi < 0) return series[lo];
     if (lo === hi) return series[lo];
     const v0 = series[lo], v1 = series[hi];
@@ -1059,6 +988,74 @@ function valueForFeature(feature, indId, year, groupedValues = null) {
     return values?.get(featureGroupKey(feature, state.viewLevel)) ?? null;
 }
 
+function shouldSmoothClimateIndicator(indId) {
+    const spec = climateScaleSpec(indId);
+    return spec && (spec.kind === "continuous" || spec.kind === "climate-diverging");
+}
+
+function smoothedClimateValues(indId, year) {
+    const cacheKey = `smooth|${indId}|${Math.round(year * 100) / 100}`;
+    if (_displayValueCache.has(cacheKey)) return _displayValueCache.get(cacheKey);
+    if (!shouldSmoothClimateIndicator(indId) || state.viewLevel !== "mun") {
+        _displayValueCache.set(cacheKey, null);
+        return null;
+    }
+
+    const nodes = (state.municipios?.features || []).map(feature => {
+        const value = indicatorValue(feature.properties.ine, indId, year);
+        if (value == null || !Number.isFinite(value)) return null;
+        const point = featureScreenPoint(feature);
+        if (!point) return null;
+        return { ine: feature.properties.ine, x: point[0], y: point[1], value };
+    }).filter(Boolean);
+    if (!nodes.length) {
+        _displayValueCache.set(cacheKey, null);
+        return null;
+    }
+
+    const radius = Math.max(34, Math.min(58, Math.sqrt(mapSize.w * mapSize.h) / 22));
+    const sigma2 = Math.pow(radius * 0.48, 2) * 2;
+    const cell = radius;
+    const grid = new Map();
+    nodes.forEach(node => {
+        const gx = Math.floor(node.x / cell);
+        const gy = Math.floor(node.y / cell);
+        const key = `${gx}|${gy}`;
+        if (!grid.has(key)) grid.set(key, []);
+        grid.get(key).push(node);
+    });
+
+    const out = new Map();
+    nodes.forEach(node => {
+        const gx = Math.floor(node.x / cell);
+        const gy = Math.floor(node.y / cell);
+        let sum = 0;
+        let wsum = 0;
+        for (let ix = gx - 1; ix <= gx + 1; ix++) {
+            for (let iy = gy - 1; iy <= gy + 1; iy++) {
+                const bucket = grid.get(`${ix}|${iy}`);
+                if (!bucket) continue;
+                bucket.forEach(other => {
+                    const dist2 = Math.pow(node.x - other.x, 2) + Math.pow(node.y - other.y, 2);
+                    if (dist2 > radius * radius) return;
+                    const w = Math.exp(-dist2 / sigma2);
+                    sum += other.value * w;
+                    wsum += w;
+                });
+            }
+        }
+        out.set(node.ine, wsum > 0 ? sum / wsum : node.value);
+    });
+    _displayValueCache.set(cacheKey, out);
+    return out;
+}
+
+function displayValueForFeature(feature, indId, year, groupedValues = null) {
+    if (state.viewLevel !== "mun") return valueForFeature(feature, indId, year, groupedValues);
+    const smoothed = smoothedClimateValues(indId, year);
+    return smoothed?.get(feature.properties.ine) ?? valueForFeature(feature, indId, year, groupedValues);
+}
+
 function groupNameForFeature(feature) {
     const ine = feature?.properties?.ine;
     const m = state.data?.municipios?.[ine];
@@ -1100,11 +1097,729 @@ function activeMapSelector() {
     return "path.municipio";
 }
 
+function activeFeaturesForView() {
+    if (state.viewLevel === "prov") return state.provincias?.features || [];
+    if (state.viewLevel === "ccaa") return state.comunidades?.features || [];
+    return state.municipios?.features || [];
+}
+
+function activeFeatureKey(feature) {
+    if (state.viewLevel === "mun") return feature?.properties?.ine || "";
+    return feature?.properties?.code || featureGroupKey(feature, state.viewLevel) || "";
+}
+
+function isCanariasMapFeature(feature) {
+    const code = provinceCode(feature);
+    return feature?.properties?.inset === "canarias" || code === "35" || code === "38" || feature?.properties?.code === "05";
+}
+
+function projectionForFeature(feature) {
+    return isCanariasMapFeature(feature) && projectionCanarias ? projectionCanarias : projection;
+}
+
+function projectFeatureCoord(feature, coord) {
+    const proj = projectionForFeature(feature);
+    if (!proj || !coord) return null;
+    const p = proj(coord);
+    return p && Number.isFinite(p[0]) && Number.isFinite(p[1]) ? p : null;
+}
+
+function featurePath2d(feature) {
+    if (typeof Path2D === "undefined") return null;
+    if (_featurePathCache.has(feature)) return _featurePathCache.get(feature);
+    const d = pathGen(feature);
+    const path = d ? new Path2D(d) : null;
+    _featurePathCache.set(feature, path);
+    return path;
+}
+
+function screenBoundsForFeature(feature) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    visitCoordinates(feature.geometry, coord => {
+        const p = projectFeatureCoord(feature, coord);
+        if (!p) return;
+        minX = Math.min(minX, p[0]);
+        minY = Math.min(minY, p[1]);
+        maxX = Math.max(maxX, p[0]);
+        maxY = Math.max(maxY, p[1]);
+    });
+    return [minX, minY, maxX, maxY].every(Number.isFinite)
+        ? { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY }
+        : null;
+}
+
+function pointInsideFeatureScreen(feature, x, y) {
+    const path = featurePath2d(feature);
+    if (!path) return false;
+    const ctx = _mapMaskCache?.ctx || document.createElement("canvas").getContext("2d");
+    return !!ctx?.isPointInPath(path, x, y, "evenodd");
+}
+
+function featureScreenPoint(feature) {
+    if (_featurePointCache.has(feature)) return _featurePointCache.get(feature);
+    let sx = 0, sy = 0, n = 0;
+    visitCoordinates(feature.geometry, coord => {
+        const p = projectFeatureCoord(feature, coord);
+        if (!p) return;
+        sx += p[0];
+        sy += p[1];
+        n += 1;
+    });
+    if (!n) return null;
+    const centroid = [sx / n, sy / n];
+    if (pointInsideFeatureScreen(feature, centroid[0], centroid[1])) {
+        _featurePointCache.set(feature, centroid);
+        return centroid;
+    }
+
+    const bounds = screenBoundsForFeature(feature);
+    if (!bounds) return centroid;
+    const candidates = [
+        [(bounds.minX + bounds.maxX) / 2, (bounds.minY + bounds.maxY) / 2],
+        [centroid[0], centroid[1]],
+    ];
+    const steps = Math.max(4, Math.min(12, Math.ceil(Math.max(bounds.w, bounds.h) / 7)));
+    for (let yi = 0; yi <= steps; yi++) {
+        const y = bounds.minY + (bounds.h * yi) / Math.max(1, steps);
+        for (let xi = 0; xi <= steps; xi++) {
+            const x = bounds.minX + (bounds.w * xi) / Math.max(1, steps);
+            candidates.push([x, y]);
+        }
+    }
+    let best = null;
+    let bestD = Infinity;
+    for (const p of candidates) {
+        if (!pointInsideFeatureScreen(feature, p[0], p[1])) continue;
+        const d = Math.hypot(p[0] - centroid[0], p[1] - centroid[1]);
+        if (d < bestD) {
+            bestD = d;
+            best = p;
+        }
+    }
+    const point = best || centroid;
+    _featurePointCache.set(feature, point);
+    return point;
+}
+
+function robustMagnitudeScale(values, range) {
+    const mags = values
+        .map(v => Math.abs(v))
+        .filter(v => Number.isFinite(v))
+        .sort((a, b) => a - b);
+    if (!mags.length) return () => range[0];
+    const lo = d3.quantile(mags, 0.08) ?? mags[0];
+    const hi = d3.quantile(mags, 0.985) ?? mags[mags.length - 1];
+    if (!Number.isFinite(hi) || hi <= lo) return () => (range[0] + range[1]) / 2;
+    return d3.scaleSqrt().domain([Math.max(0, lo), hi]).range(range).clamp(true);
+}
+
+function bubbleRadiusScale(values, count) {
+    const minR = count > 1000 ? 0.85 : count > 120 ? 2.4 : count > 30 ? 5.5 : 8;
+    const maxR = count > 1000 ? 5.8 : count > 120 ? 14 : count > 30 ? 24 : 36;
+    return robustMagnitudeScale(values, [minR, maxR]);
+}
+
+function buildVisualNodes(year, indId) {
+    const features = activeFeaturesForView();
+    const groupedValues = state.viewLevel === "mun" ? null : aggregateValuesForLevel(state.viewLevel, indId, year);
+    const colorFn = colorScaleFor(indId);
+    return features.map(feature => {
+        const value = displayValueForFeature(feature, indId, year, groupedValues);
+        if (value == null || !Number.isFinite(value)) return null;
+        const point = featureScreenPoint(feature);
+        if (!point) return null;
+        return {
+            key: activeFeatureKey(feature),
+            feature,
+            value,
+            x0: point[0],
+            y0: point[1],
+            x: point[0],
+            y: point[1],
+            color: colorFn(value),
+        };
+    }).filter(Boolean);
+}
+
+function resolveBubbleRadiusOverlaps(nodes) {
+    const cellSize = 14;
+    for (let pass = 0; pass < 3; pass++) {
+        const grid = new Map();
+        let changed = false;
+        for (const d of nodes) {
+            const gx = Math.floor(d.x0 / cellSize);
+            const gy = Math.floor(d.y0 / cellSize);
+            for (let ix = gx - 2; ix <= gx + 2; ix++) {
+                for (let iy = gy - 2; iy <= gy + 2; iy++) {
+                    const arr = grid.get(`${ix}|${iy}`) || [];
+                    for (const other of arr) {
+                        const dist = Math.hypot(d.x0 - other.x0, d.y0 - other.y0);
+                        const overlap = d.r + other.r - dist;
+                        if (overlap <= 0.08) continue;
+                        changed = true;
+                        if (dist < 1e-6) {
+                            d.r = Math.min(d.r, 0.02);
+                            other.r = Math.min(other.r, 0.02);
+                            continue;
+                        }
+                        const ratio = Math.max(0.02, (dist - 0.08) / (d.r + other.r)) * 0.98;
+                        d.r = Math.max(0.02, d.r * ratio);
+                        other.r = Math.max(0.02, other.r * ratio);
+                    }
+                }
+            }
+            const key = `${gx}|${gy}`;
+            if (!grid.has(key)) grid.set(key, []);
+            grid.get(key).push(d);
+        }
+        if (!changed) break;
+    }
+}
+
+function layoutBubbleNodes(nodes) {
+    const values = nodes.map(d => d.value);
+    const rScale = bubbleRadiusScale(values, nodes.length);
+    nodes.forEach(d => {
+        d.r = Math.max(nodes.length > 1000 ? 0.45 : 1, rScale(Math.abs(d.value)));
+        d.x = d.x0;
+        d.y = d.y0;
+    });
+    if (nodes.length > 1000) {
+        const delaunay = d3.Delaunay.from(nodes, d => d.x0, d => d.y0);
+        nodes.forEach((d, i) => {
+            let minDist = Infinity;
+            for (const j of delaunay.neighbors(i)) {
+                const other = nodes[j];
+                minDist = Math.min(minDist, Math.hypot(d.x0 - other.x0, d.y0 - other.y0));
+            }
+            if (Number.isFinite(minDist)) {
+                d.r = Math.min(d.r, Math.max(0.02, minDist * 0.35));
+            }
+        });
+        resolveBubbleRadiusOverlaps(nodes);
+        return nodes;
+    }
+    const many = nodes.length > 1000;
+    const iterations = nodes.length > 3000 ? 52 : nodes.length > 1000 ? 78 : 150;
+    const sim = d3.forceSimulation(nodes)
+        .velocityDecay(0.72)
+        .force("x", d3.forceX(d => d.x0).strength(many ? 0.09 : 0.2))
+        .force("y", d3.forceY(d => d.y0).strength(many ? 0.09 : 0.2))
+        .force("collide", d3.forceCollide(d => d.r + (many ? 0.28 : 0.8)).iterations(many ? 2 : 2))
+        .stop();
+    for (let i = 0; i < iterations; i++) sim.tick();
+    nodes.forEach(d => {
+        d.x = Math.max(-d.r, Math.min(mapSize.w + d.r, d.x));
+        d.y = Math.max(-d.r, Math.min(mapSize.h + d.r, d.y));
+    });
+    return nodes;
+}
+
+function renderBubbles(year, indId) {
+    const layer = map.select("g.layer-bubbles");
+    if (layer.empty() || !isPaintableIndicator(indId)) return;
+    const nodes = layoutBubbleNodes(buildVisualNodes(year, indId));
+    layer.selectAll("circle.bubble-symbol")
+        .data(nodes, d => d.key)
+        .join(
+            enter => enter.append("circle")
+                .attr("class", "bubble-symbol")
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y)
+                .attr("r", 0)
+                .on("mouseover", (ev, d) => onMuniHover(ev, d.feature))
+                .on("mouseleave", onMuniLeave)
+                .on("click", (ev, d) => {
+                    if (state.viewLevel === "mun") onMuniClick(ev, d.feature);
+                }),
+            update => update,
+            exit => exit.remove()
+        )
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y)
+        .attr("r", d => d.r)
+        .attr("fill", d => d.color)
+        .classed("selected", d => state.viewLevel === "mun" && state.selectedInes.includes(d.feature.properties.ine));
+}
+
+function reliefHeightScale(values, heightMax) {
+    const finite = values
+        .filter(v => Number.isFinite(v))
+        .sort((a, b) => a - b);
+    if (!finite.length) return () => 0;
+    const pivot = finite[Math.floor(finite.length * 0.2)] || 1;
+    const highSkew = finite[0] >= 0 && finite[finite.length - 1] / Math.max(1, pivot) > 120;
+    const tx = highSkew ? (value) => Math.log1p(Math.max(0, value)) : (value) => value;
+    const sorted = finite
+        .map(tx)
+        .sort((a, b) => a - b);
+    if (!sorted.length) return () => 0;
+    const lo = d3.quantile(sorted, 0.03) ?? sorted[0];
+    const hi = d3.quantile(sorted, 0.995) ?? sorted[sorted.length - 1];
+    if (!Number.isFinite(hi) || hi <= lo) return () => heightMax * 0.34;
+    return value => {
+        const t = Math.max(0, Math.min(1, (tx(value) - lo) / (hi - lo)));
+        return 1.5 + Math.pow(t, 0.72) * heightMax;
+    };
+}
+
+function canaryInsetFrame() {
+    return insetFrames.find(f => f.label === "Canarias") || null;
+}
+
+function screenPointInsideSpain(x, y) {
+    if (typeof Path2D !== "undefined" && typeof document !== "undefined") {
+        if (!_mapMaskCache) {
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.ceil(mapSize.w));
+            canvas.height = Math.max(1, Math.ceil(mapSize.h));
+            const ctx = canvas.getContext("2d");
+            const maskFeatures = state.country?.features?.length ? state.country.features : (state.comunidades?.features || []);
+            const paths = maskFeatures
+                .map(feature => {
+                    const d = pathGen(feature);
+                    return d ? new Path2D(d) : null;
+                })
+                .filter(Boolean);
+            _mapMaskCache = { ctx, paths };
+        }
+        if (_mapMaskCache?.ctx && _mapMaskCache.paths.length) {
+            return _mapMaskCache.paths.some(path => _mapMaskCache.ctx.isPointInPath(path, x, y, "evenodd"));
+        }
+    }
+    const frame = canaryInsetFrame();
+    const inCanaryFrame = frame && x >= frame.x && x <= frame.x + frame.w && y >= frame.y && y <= frame.y + frame.h;
+    const proj = inCanaryFrame && projectionCanarias ? projectionCanarias : projection;
+    if (!proj?.invert) return false;
+    const ll = proj.invert([x, y]);
+    if (!ll || !Number.isFinite(ll[0]) || !Number.isFinite(ll[1])) return false;
+    const features = state.country?.features?.length ? state.country.features : (state.comunidades?.features || []);
+    const pool = inCanaryFrame ? features.filter(isCanariasMapFeature) : features.filter(f => !isCanariasMapFeature(f));
+    const fallbackPool = pool.length ? pool : features;
+    return fallbackPool.some(f => d3.geoContains(f, ll));
+}
+
+function loadThree() {
+    if (!_threePromise) {
+        _threePromise = import("https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js");
+    }
+    return _threePromise;
+}
+
+function setRelief3dStatus(message) {
+    const host = $("#map-3d");
+    if (!host) return;
+    host.innerHTML = message ? `<div class="map-3d-status">${message}</div>` : "";
+}
+
+function hideRelief3d(clear = false) {
+    _relief3dToken += 1;
+    const host = $("#map-3d");
+    if (!host) return;
+    if (clear) {
+        if (_relief3dRenderer) {
+            _relief3dRenderer.dispose?.();
+            _relief3dRenderer = null;
+        }
+        host.innerHTML = "";
+    }
+}
+
+function worldPoint(x, y, z = 0) {
+    return [x - mapSize.w / 2, mapSize.h / 2 - y, z];
+}
+
+function sampledRingScreenPoints(feature, ring, stepPx = 12) {
+    const out = [];
+    for (let i = 0; i < ring.length; i++) {
+        const a = projectFeatureCoord(feature, ring[i]);
+        const b = projectFeatureCoord(feature, ring[(i + 1) % ring.length]);
+        if (!a || !b) continue;
+        const dist = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const steps = Math.max(1, Math.ceil(dist / stepPx));
+        for (let j = 0; j < steps; j++) {
+            const t = j / steps;
+            out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+        }
+    }
+    return out;
+}
+
+function visitPolygonRings(geometry, cb) {
+    if (!geometry) return;
+    if (geometry.type === "Polygon") {
+        geometry.coordinates.forEach(ring => cb(ring));
+    } else if (geometry.type === "MultiPolygon") {
+        geometry.coordinates.forEach(poly => poly.forEach(ring => cb(ring)));
+    } else if (geometry.type === "GeometryCollection") {
+        geometry.geometries.forEach(g => visitPolygonRings(g, cb));
+    }
+}
+
+function buildRelief3dSamples(year, indId) {
+    const nodes = buildVisualNodes(year, indId);
+    if (nodes.length < 3) return null;
+    const values = nodes.map(d => d.value);
+    const colorFn = colorScaleFor(indId);
+    const heightMax = Math.max(56, Math.min(112, mapSize.h * 0.15));
+    const hScale = reliefHeightScale(values, heightMax);
+    const baseDelaunay = d3.Delaunay.from(nodes, d => d.x0, d => d.y0);
+    const toSample = (x, y, source = null, edgeFactor = 1, boundary = false) => {
+        const idx = baseDelaunay.find(x, y);
+        const d = nodes[idx];
+        if (!d) return null;
+        const value = d.value;
+        const height = hScale(value) * edgeFactor;
+        const wp = worldPoint(x, y, height);
+        return {
+            x: wp[0],
+            y: wp[1],
+            z: wp[2],
+            screenX: x,
+            screenY: y,
+            value,
+            feature: source || d.feature,
+            color: colorFn(value),
+            isMunicipal: !source,
+            boundary,
+        };
+    };
+
+    const samples = nodes.map(d => {
+        const wp = worldPoint(d.x0, d.y0, hScale(d.value));
+        return {
+            x: wp[0],
+            y: wp[1],
+            z: wp[2],
+            screenX: d.x0,
+            screenY: d.y0,
+            value: d.value,
+            feature: d.feature,
+            color: d.color,
+            isMunicipal: true,
+            boundary: false,
+        };
+    });
+
+    const seen = new Set();
+    nodes.forEach(d => seen.add(`${Math.round(d.x0)}|${Math.round(d.y0)}`));
+    const addSupportPoint = (feature, point, edgeFactor = 1, boundary = false) => {
+        const key = `${Math.round(point[0])}|${Math.round(point[1])}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const s = toSample(point[0], point[1], feature, edgeFactor, boundary);
+        if (s) samples.push(s);
+    };
+
+    const gridStep = Math.max(15, Math.min(23, Math.sqrt((mapSize.w * mapSize.h) / 3600)));
+    for (let y = gridStep / 2; y < mapSize.h; y += gridStep) {
+        for (let x = gridStep / 2; x < mapSize.w; x += gridStep) {
+            if (screenPointInsideSpain(x, y)) addSupportPoint(null, [x, y], 1, false);
+        }
+    }
+
+    const countryBoundaryFeatures = state.country?.features?.length ? state.country.features : (state.comunidades?.features || []);
+    countryBoundaryFeatures.forEach(feature => {
+        visitPolygonRings(feature.geometry, ring => {
+            sampledRingScreenPoints(feature, ring, 5).forEach(p => addSupportPoint(feature, p, 0.55, true));
+        });
+    });
+
+    const delaunay = d3.Delaunay.from(samples, d => d.screenX, d => d.screenY);
+    const triangles = delaunay.triangles;
+    const indices = [];
+    const maxEdgeAllowed = gridStep * 3.05;
+    for (let i = 0; i < triangles.length; i += 3) {
+        const a = samples[triangles[i]];
+        const b = samples[triangles[i + 1]];
+        const c = samples[triangles[i + 2]];
+        const cx = (a.screenX + b.screenX + c.screenX) / 3;
+        const cy = (a.screenY + b.screenY + c.screenY) / 3;
+        if (!screenPointInsideSpain(cx, cy)) continue;
+        const maxEdge = Math.max(
+            Math.hypot(a.screenX - b.screenX, a.screenY - b.screenY),
+            Math.hypot(b.screenX - c.screenX, b.screenY - c.screenY),
+            Math.hypot(c.screenX - a.screenX, c.screenY - a.screenY)
+        );
+        if (maxEdge > maxEdgeAllowed) continue;
+        indices.push(triangles[i], triangles[i + 1], triangles[i + 2]);
+    }
+
+    return { samples, indices, nodes, baseDelaunay, hScale, colorFn };
+}
+
+function addTerrainLinePositions(feature, geometry, positions, reliefData, zOffset = 4) {
+    visitPolygonRings(geometry, ring => {
+        let prev = null;
+        sampledRingScreenPoints(feature, ring, 12).forEach(point => {
+            const idx = reliefData.baseDelaunay.find(point[0], point[1]);
+            const d = reliefData.nodes[idx];
+            const z = d ? reliefData.hScale(d.value) + zOffset : zOffset;
+            const wp = worldPoint(point[0], point[1], z);
+            if (prev) positions.push(prev[0], prev[1], prev[2], wp[0], wp[1], wp[2]);
+            prev = wp;
+        });
+    });
+}
+
+function renderRelief3d(year, indId) {
+    const host = $("#map-3d");
+    if (!host || !isPaintableIndicator(indId)) return;
+    const token = ++_relief3dToken;
+    setRelief3dStatus("Construyendo relieve 3D...");
+    loadThree()
+        .then(THREE => {
+            if (token !== _relief3dToken || state.visualMode !== "relief") return;
+            drawRelief3d(THREE, year, indId, token);
+        })
+        .catch(err => {
+            console.warn("No se pudo cargar Three.js", err);
+            if (token === _relief3dToken) setRelief3dStatus("No se pudo cargar la vista 3D.");
+        });
+}
+
+function drawRelief3d(THREE, year, indId, token) {
+    const host = $("#map-3d");
+    if (!host || token !== _relief3dToken) return;
+    const samples = buildRelief3dSamples(year, indId);
+    if (!samples) {
+        setRelief3dStatus("Sin datos suficientes para el relieve.");
+        return;
+    }
+    host.innerHTML = "";
+
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(mapSize.w, mapSize.h, false);
+    renderer.setClearColor(0x000000, 0);
+    host.appendChild(renderer.domElement);
+    _relief3dRenderer = renderer;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-mapSize.w / 2, mapSize.w / 2, mapSize.h / 2, -mapSize.h / 2, -2000, 3000);
+    camera.position.set(0, 0, mapSize.h * 1.34);
+    camera.lookAt(0, 0, 16);
+    camera.zoom = 0.92;
+    camera.updateProjectionMatrix();
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.76));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 0.82);
+    keyLight.position.set(-260, -420, 720);
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xf6e0c2, 0.28);
+    fillLight.position.set(360, 240, 420);
+    scene.add(fillLight);
+
+    const sceneGroup = new THREE.Group();
+    scene.add(sceneGroup);
+
+    const positions = [];
+    const colors = [];
+    samples.samples.forEach(p => {
+        positions.push(p.x, p.y, p.z);
+        const color = new THREE.Color(p.color);
+        colors.push(color.r, color.g, color.b);
+    });
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setIndex(samples.indices);
+    geometry.computeVertexNormals();
+    const material = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.94,
+        metalness: 0,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.96,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    sceneGroup.add(mesh);
+
+    const countryPositions = [];
+    (state.country?.features || []).forEach(feature => addTerrainLinePositions(feature, feature.geometry, countryPositions, samples, 7));
+    const countryGeometry = new THREE.BufferGeometry();
+    countryGeometry.setAttribute("position", new THREE.Float32BufferAttribute(countryPositions, 3));
+    sceneGroup.add(new THREE.LineSegments(
+        countryGeometry,
+        new THREE.LineBasicMaterial({ color: 0x2c3840, transparent: true, opacity: 0.62 })
+    ));
+
+    const outlinePositions = [];
+    (state.comunidades?.features || []).forEach(feature => addTerrainLinePositions(feature, feature.geometry, outlinePositions, samples, 5));
+    const outlineGeometry = new THREE.BufferGeometry();
+    outlineGeometry.setAttribute("position", new THREE.Float32BufferAttribute(outlinePositions, 3));
+    sceneGroup.add(new THREE.LineSegments(
+        outlineGeometry,
+        new THREE.LineBasicMaterial({ color: 0x2f3a40, transparent: true, opacity: 0.34 })
+    ));
+
+    const coastPositions = [];
+    (state.provincias?.features || []).forEach(feature => addTerrainLinePositions(feature, feature.geometry, coastPositions, samples, 4));
+    const coastGeometry = new THREE.BufferGeometry();
+    coastGeometry.setAttribute("position", new THREE.Float32BufferAttribute(coastPositions, 3));
+    sceneGroup.add(new THREE.LineSegments(
+        coastGeometry,
+        new THREE.LineBasicMaterial({ color: 0x45515a, transparent: true, opacity: 0.2 })
+    ));
+
+    const view = { zoom: 0.92, panX: 0, panY: 0, rotZ: 0, tilt: 0 };
+    const renderScene = () => {
+        camera.zoom = view.zoom;
+        const tilt = view.tilt;
+        camera.position.set(
+            view.panX,
+            view.panY - mapSize.h * 0.9 * tilt,
+            mapSize.h * (1.34 - Math.min(0.46, Math.abs(tilt) * 0.42))
+        );
+        camera.lookAt(view.panX, view.panY, 18);
+        camera.updateProjectionMatrix();
+        sceneGroup.rotation.z = view.rotZ;
+        renderer.render(scene, camera);
+    };
+    renderScene();
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let dragging = false;
+    let dragMoved = false;
+    let lastPointer = null;
+
+    const setMouse = (event) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    };
+
+    const showReliefTooltip = (event) => {
+        if (dragging) return;
+        setMouse(event);
+        raycaster.setFromCamera(mouse, camera);
+        const hit = raycaster.intersectObject(mesh, false)[0];
+        if (!hit) {
+            tooltip.classList.remove("visible");
+            return;
+        }
+        const local = mesh.worldToLocal(hit.point.clone());
+        const screenX = local.x + mapSize.w / 2;
+        const screenY = mapSize.h / 2 - local.y;
+        const idx = samples.baseDelaunay.find(screenX, screenY);
+        const node = samples.nodes[idx];
+        if (!node) {
+            tooltip.classList.remove("visible");
+            return;
+        }
+        const v = indicatorValue(node.feature.properties.ine, indId, year);
+        const meta = indicatorMeta(indId);
+        const fmt = indicatorFormat(indId);
+        tooltip.innerHTML = `
+            <div class="tooltip-name">${groupNameForFeature(node.feature)}</div>
+            <div class="tooltip-meta">${groupMetaForFeature(node.feature, year)}</div>
+            <div class="tooltip-value"><span>${meta.name.toLowerCase()}</span><strong>${fmt(v)}</strong></div>
+        `;
+        tooltip.classList.add("visible");
+        moveTooltip(event);
+    };
+
+    renderer.domElement.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        const factor = event.deltaY > 0 ? 0.9 : 1.1;
+        view.zoom = Math.max(0.5, Math.min(2.6, view.zoom * factor));
+        renderScene();
+    }, { passive: false });
+
+    renderer.domElement.addEventListener("pointerdown", (event) => {
+        dragging = true;
+        dragMoved = false;
+        lastPointer = { x: event.clientX, y: event.clientY };
+        renderer.domElement.setPointerCapture?.(event.pointerId);
+        tooltip.classList.remove("visible");
+    });
+    renderer.domElement.addEventListener("pointermove", (event) => {
+        if (!dragging) {
+            showReliefTooltip(event);
+            return;
+        }
+        const dx = event.clientX - lastPointer.x;
+        const dy = event.clientY - lastPointer.y;
+        dragMoved = dragMoved || Math.abs(dx) + Math.abs(dy) > 2;
+        lastPointer = { x: event.clientX, y: event.clientY };
+        if (event.shiftKey) {
+            view.rotZ += dx * 0.006;
+            view.tilt = Math.max(-0.58, Math.min(0.58, view.tilt + dy * 0.0032));
+        } else {
+            view.panX -= dx / view.zoom;
+            view.panY += dy / view.zoom;
+        }
+        renderScene();
+    });
+    const stopDrag = (event) => {
+        if (!dragging) return;
+        dragging = false;
+        renderer.domElement.releasePointerCapture?.(event.pointerId);
+        if (!dragMoved) showReliefTooltip(event);
+    };
+    renderer.domElement.addEventListener("pointerup", stopDrag);
+    renderer.domElement.addEventListener("pointercancel", stopDrag);
+    renderer.domElement.addEventListener("pointerleave", () => {
+        if (!dragging) tooltip.classList.remove("visible");
+    });
+}
+
+function renderRelief(year, indId) {
+    const layer = map.select("g.layer-relief");
+    if (layer.empty() || !isPaintableIndicator(indId)) return;
+    layer.selectAll("*").remove();
+    renderRelief3d(year, indId);
+}
+
+function clearVisualLayers() {
+    map.select("g.layer-bubbles").selectAll("*").remove();
+    map.select("g.layer-relief").selectAll("*").remove();
+    if (state.visualMode !== "relief") hideRelief3d(true);
+}
+
+function applyVisualModeClass() {
+    map
+        .classed("visual-choropleth", state.visualMode === "choropleth")
+        .classed("visual-bubbles", state.visualMode === "bubbles")
+        .classed("visual-relief", state.visualMode === "relief");
+    $(".map-area")?.classList.toggle("visual-relief", state.visualMode === "relief");
+}
+
+function updateVisualControls() {
+    const paintable = isPaintableIndicator(state.indicator);
+    if (!paintable && state.visualMode !== "choropleth") {
+        state.visualMode = "choropleth";
+        applyVisualModeClass();
+    }
+    ["choropleth", "bubbles", "relief"].forEach(mode => {
+        const btn = $(`#btn-visual-${mode}`);
+        if (!btn) return;
+        btn.classList.toggle("active", state.visualMode === mode);
+        btn.disabled = mode !== "choropleth" && !paintable;
+    });
+}
+
+function renderVisualLayers(year, indId) {
+    updateVisualControls();
+    clearVisualLayers();
+    if (!isPaintableIndicator(indId)) return;
+    if (state.visualMode === "bubbles") {
+        renderBubbles(year, indId);
+    } else if (state.visualMode === "relief") {
+        renderRelief(year, indId);
+    }
+}
+
 function paintMunicipios() {
     const cat = CATEGORIES[state.category];
     const year = currentYear();
     const routeMode = state.category === "transporte" && !isPaintableIndicator(state.indicator);
     map.classed("route-mode", routeMode);
+    map.classed("climate-mode", state.category === "clima");
+    applyVisualModeClass();
     map.selectAll("path.municipio,path.provincia-fill,path.ccaa-fill").attr("fill", NO_DATA_COLOR);
 
     if (isPaintableIndicator(state.indicator) && cat?.type !== 'placeholder') {
@@ -1112,7 +1827,7 @@ function paintMunicipios() {
         const groupedValues = aggregateValuesForLevel(state.viewLevel, state.indicator, year);
         map.selectAll(activeMapSelector())
             .attr("fill", d => {
-                const v = valueForFeature(d, state.indicator, year, groupedValues);
+                const v = displayValueForFeature(d, state.indicator, year, groupedValues);
                 return v == null ? NO_DATA_COLOR : colorFn(v);
             });
         renderLegend(state.indicator);
@@ -1121,11 +1836,13 @@ function paintMunicipios() {
     } else {
         $("#legend").innerHTML = '';
     }
+    renderVisualLayers(year, state.indicator);
     updateOverlayVisibility(year);
     $("#timebar-year").textContent = Math.round(year);
     $("#legend-year").textContent = Math.round(year);
     updateSourceFooter();
     renderDataView();
+    scheduleURLSync();
 }
 
 // Look up an indicator's metadata (for unit, name) regardless of whether it's
@@ -1169,7 +1886,7 @@ function sourceDetailsForIndicator(indId = state.indicator) {
         return {
             title: name,
             source: "Fuente pendiente de verificacion. En el catalogo local figura como indicador de pueblos de colonizacion dentro de historeco.json; no hay metadato suficiente aqui para atribuirlo con seguridad a Albertus.",
-            method: "Variable discreta que identifica la decada asociada a pueblos de colonizacion. Conviene interpretarla como capa historica de localizacion, no como serie continua.",
+            method: "Variable discreta que identifica la década asociada a pueblos de colonización. Conviene interpretarla como capa histórica de localización, no como serie continua.",
             citation: "No citar como Albertus hasta verificar la fuente original. Citar provisionalmente el Atlas Historico Municipal de Espana como visor/elaboracion y revisar la fuente primaria antes de usar la variable.",
         };
     }
@@ -1185,7 +1902,7 @@ function sourceDetailsForIndicator(indId = state.indicator) {
         return {
             title: name,
             source: "HYDE + LUH2, agregadas a municipio.",
-            method: "Superficies historicas de cultivos, pastos, urbano, bosque y otros usos. Al pasar a provincia o CCAA se suman superficies.",
+            method: "Superficies históricas de cultivos, pastos, urbano, bosque y otros usos. Al pasar a provincia o CCAA se suman superficies.",
             citation: "Citar HYDE/LUH2 y el Atlas Historico Municipal de Espana como visor/elaboracion.",
         };
     }
@@ -1210,11 +1927,11 @@ function sourceInfoForIndicator(indId = state.indicator) {
     return `<strong>${d.title}</strong>
         <div class="detail-kicker">Fuente</div>
         <div>${d.source}</div>
-        <div class="detail-kicker">Metodo</div>
+        <div class="detail-kicker">Método</div>
         <div>${d.method}</div>
         <div class="detail-kicker">Referencia para citar</div>
         <div>${d.citation}</div>
-        <button class="source-about-link" type="button" id="map-source-about">Metodos y fuentes</button>`;
+        <button class="source-about-link" type="button" id="map-source-about">Métodos y fuentes</button>`;
 }
 
 function updateSourceFooter() {
@@ -1233,6 +1950,114 @@ function updateSourceFooter() {
 // so the legend stays constant when the user scrubs the timeline.
 const _scaleCache = new Map();
 const _aggregateCache = new Map();
+const _displayValueCache = new Map();
+const _indicatorDisplayYearsCache = new Map();
+let _mapMaskCache = null;
+let _featurePathCache = new WeakMap();
+let _featurePointCache = new WeakMap();
+let _threePromise = null;
+let _relief3dToken = 0;
+let _relief3dRenderer = null;
+
+function climateScaleSpec(layer) {
+    const id = (layer || "").toLowerCase();
+    const binary = {
+        dry_hot_climate: { yes: "#c85b3e", label: "Seco-calido" },
+        dry_cold_climate: { yes: "#656aa0", label: "Seco-frio" },
+        oceanic: { yes: "#2f8f9a", label: "Oceanico" },
+        mediterranean: { yes: "#d2954b", label: "Mediterraneo" },
+    };
+    if (binary[id]) return { kind: "binary", ...binary[id] };
+    if (id === "pp" || id === "grow_period_pp") return { kind: "continuous", colors: CLIMATE_PRECIP_COLORS };
+    if (id === "t_average") return { kind: "continuous", colors: CLIMATE_TEMP_COLORS };
+    if (id === "frost_days") return { kind: "continuous", colors: CLIMATE_FROST_COLORS };
+    if (id === "spei") return { kind: "climate-diverging", colors: CLIMATE_DIVERGING_COLORS };
+    return null;
+}
+
+function buildClimateScale(layer, values, spec) {
+    if (spec.kind === "binary") {
+        const off = "#eef2ef";
+        const fn = v => Number.isFinite(v) && v >= 0.5 ? spec.yes : off;
+        return {
+            kind: "binary",
+            fn,
+            breaks: {},
+            signed: false,
+            values,
+            colors: [off, spec.yes],
+            labels: ["No", spec.label || "Si"],
+        };
+    }
+
+    const sorted = values
+        .filter(v => Number.isFinite(v))
+        .slice()
+        .sort((a, b) => a - b);
+    if (!sorted.length) return { kind: "empty", fn: () => NO_DATA_COLOR, breaks: null, signed: false, values };
+
+    if (spec.kind === "climate-diverging") {
+        const neg = sorted.filter(v => v < 0);
+        const pos = sorted.filter(v => v > 0);
+        const absMax = Math.max(
+            Math.abs(d3.quantile(neg, 0.03) ?? d3.min(sorted) ?? 0),
+            Math.abs(d3.quantile(pos, 0.97) ?? d3.max(sorted) ?? 0),
+            0.1
+        );
+        const fn = d3.scaleLinear()
+            .domain([-absMax, -absMax / 2, 0, absMax / 2, absMax])
+            .range(spec.colors)
+            .clamp(true);
+        return { kind: "climate-diverging", fn, breaks: { absMax }, signed: true, values, colors: spec.colors };
+    }
+
+    const qs = spec.colors.map((_, i) => i / Math.max(1, spec.colors.length - 1));
+    const domain = qs.map(q => d3.quantile(sorted, q === 0 ? 0.02 : q === 1 ? 0.98 : q));
+    for (let i = 1; i < domain.length; i++) {
+        if (domain[i] <= domain[i - 1]) domain[i] = domain[i - 1] + 1e-6;
+    }
+    const fn = d3.scaleLinear()
+        .domain(domain)
+        .range(spec.colors)
+        .clamp(true);
+    return {
+        kind: "continuous",
+        fn,
+        breaks: {
+            lo: domain[0],
+            q25: d3.quantile(sorted, 0.25) ?? domain[1],
+            q50: d3.quantile(sorted, 0.5) ?? domain[Math.floor(domain.length / 2)],
+            q75: d3.quantile(sorted, 0.75) ?? domain[domain.length - 2],
+            hi: domain[domain.length - 1],
+        },
+        signed: false,
+        values,
+        colors: spec.colors,
+    };
+}
+
+function buildDistanceScale(values) {
+    const sorted = values
+        .filter(v => Number.isFinite(v))
+        .slice()
+        .sort((a, b) => a - b);
+    if (!sorted.length) return { kind: "empty", fn: () => NO_DATA_COLOR, breaks: null, signed: false, values };
+    const breaks = {
+        q20: d3.quantile(sorted, 0.2) ?? sorted[0],
+        q40: d3.quantile(sorted, 0.4) ?? sorted[0],
+        q60: d3.quantile(sorted, 0.6) ?? sorted[sorted.length - 1],
+        q80: d3.quantile(sorted, 0.8) ?? sorted[sorted.length - 1],
+    };
+    const fn = v => {
+        if (v == null || !Number.isFinite(v)) return NO_DATA_COLOR;
+        if (v < breaks.q20) return DISTANCE_COLORS[0];
+        if (v < breaks.q40) return DISTANCE_COLORS[1];
+        if (v < breaks.q60) return DISTANCE_COLORS[2];
+        if (v < breaks.q80) return DISTANCE_COLORS[3];
+        return DISTANCE_COLORS[4];
+    };
+    return { kind: "distance", fn, breaks, signed: false, values, colors: DISTANCE_COLORS };
+}
 
 function _computeScaleForLayer(layer) {
     if (layer === "cambio") {
@@ -1245,8 +2070,8 @@ function _computeScaleForLayer(layer) {
 
     // Pool values across all years × all munis → robust quantile breaks
     // that don't shift as the user moves through time.
-    const yrs = indicatorYears(layer) || (state.data?.years || []);
-    const sampleYears = yrs.length <= 4 ? yrs
+    const yrs = indicatorDisplayYears(layer) || (state.data?.years || []);
+    const sampleYears = lowerIsBetter(layer) ? [currentYear()] : yrs.length <= 4 ? yrs
         : [yrs[0], yrs[Math.floor(yrs.length / 3)], yrs[Math.floor(2 * yrs.length / 3)], yrs[yrs.length - 1]];
     const values = [];
     if (state.viewLevel === "mun") {
@@ -1270,6 +2095,10 @@ function _computeScaleForLayer(layer) {
     if (values.length === 0) {
         return { kind: 'empty', fn: () => NO_DATA_COLOR, breaks: null, signed: false, values };
     }
+
+    const climateSpec = climateScaleSpec(layer);
+    if (climateSpec) return buildClimateScale(layer, values, climateSpec);
+    if (lowerIsBetter(layer)) return buildDistanceScale(values);
 
     // Diverging when the indicator naturally crosses zero (SPEI, balances…)
     const hasNeg = values.some(v => v < 0);
@@ -1315,7 +2144,8 @@ function _computeScaleForLayer(layer) {
 }
 
 function colorScaleFor(layer /*, year ignored — scale is constant */) {
-    const key = `${state.viewLevel}|${layer}|${usesLandShareMetric(layer) ? "share" : "absolute"}`;
+    const yearKey = lowerIsBetter(layer) ? `|${Math.round(currentYear() * 10) / 10}` : "";
+    const key = `${state.viewLevel}|${layer}|${usesLandShareMetric(layer) ? "share" : "absolute"}${yearKey}`;
     if (!_scaleCache.has(key)) {
         _scaleCache.set(key, _computeScaleForLayer(layer));
     }
@@ -1323,7 +2153,8 @@ function colorScaleFor(layer /*, year ignored — scale is constant */) {
 }
 
 function getScaleInfo(layer) {
-    const key = `${state.viewLevel}|${layer}|${usesLandShareMetric(layer) ? "share" : "absolute"}`;
+    const yearKey = lowerIsBetter(layer) ? `|${Math.round(currentYear() * 10) / 10}` : "";
+    const key = `${state.viewLevel}|${layer}|${usesLandShareMetric(layer) ? "share" : "absolute"}${yearKey}`;
     if (!_scaleCache.has(key)) {
         _scaleCache.set(key, _computeScaleForLayer(layer));
     }
@@ -1372,6 +2203,37 @@ function renderLegend(layer) {
                 [`< -${fmt(m / 2)}${unit}`, CAMBIO_COLORS[0]],
                 [`±${fmt(m / 4)}${unit}`,    CAMBIO_COLORS[3]],
                 [`> +${fmt(m / 2)}${unit}`,  CAMBIO_COLORS[6]],
+            ];
+        } else if (info.kind === 'climate-diverging') {
+            const m = info.breaks.absMax;
+            const fmt = pickFmt(m);
+            const colors = info.colors || CLIMATE_DIVERGING_COLORS;
+            rows = [
+                [`Seco < -${fmt(m / 2)}${unit}`, colors[0]],
+                [`Cerca de 0`, colors[2]],
+                [`Humedo > +${fmt(m / 2)}${unit}`, colors[4]],
+            ];
+        } else if (info.kind === 'binary') {
+            rows = (info.labels || ["No", "Si"]).map((label, i) => [label, info.colors?.[i] || NO_DATA_COLOR]);
+        } else if (info.kind === 'distance') {
+            const b = info.breaks;
+            const fmt = pickFmt(b.q80);
+            const colors = info.colors || DISTANCE_COLORS;
+            rows = [
+                [`Muy cerca: < ${fmt(b.q20)}${unit}`, colors[0]],
+                [`Cerca: ${fmt(b.q20)}-${fmt(b.q40)}`, colors[1]],
+                [`Distancia media: ${fmt(b.q40)}-${fmt(b.q60)}`, colors[2]],
+                [`Lejos: ${fmt(b.q60)}-${fmt(b.q80)}`, colors[3]],
+                [`Muy lejos: > ${fmt(b.q80)}${unit}`, colors[4]],
+            ];
+        } else if (info.kind === 'continuous') {
+            const b = info.breaks;
+            const fmt = pickFmt(Math.max(Math.abs(b.hi), Math.abs(b.lo)));
+            rows = [
+                [`< ${fmt(b.q25)}${unit}`, info.fn((b.lo + b.q25) / 2)],
+                [`${fmt(b.q25)} - ${fmt(b.q50)}`, info.fn((b.q25 + b.q50) / 2)],
+                [`${fmt(b.q50)} - ${fmt(b.q75)}`, info.fn((b.q50 + b.q75) / 2)],
+                [`> ${fmt(b.q75)}${unit}`, info.fn((b.q75 + b.hi) / 2)],
             ];
         } else {
             const b = info.breaks;
@@ -1459,7 +2321,26 @@ function onMuniLeave() {
     state.hoveredIne = null;
     tooltip.classList.remove("visible");
 }
+// On a touch screen there is no hover, so the tap that selects a territory
+// also pins the value card (name, value, unit, year) until the next tap.
+const COARSE_POINTER = window.matchMedia("(pointer: coarse)").matches;
+let _pinnedTooltipDismiss = null;
+
+function pinTooltipAt(ev, d) {
+    onMuniHover(ev, d);
+    tooltip.classList.add("pinned");
+    if (_pinnedTooltipDismiss) document.removeEventListener("pointerdown", _pinnedTooltipDismiss, true);
+    _pinnedTooltipDismiss = (e) => {
+        if (tooltip.contains(e.target)) return;
+        tooltip.classList.remove("visible", "pinned");
+        document.removeEventListener("pointerdown", _pinnedTooltipDismiss, true);
+        _pinnedTooltipDismiss = null;
+    };
+    setTimeout(() => document.addEventListener("pointerdown", _pinnedTooltipDismiss, true), 0);
+}
+
 function onMuniClick(ev, d) {
+    if (COARSE_POINTER) pinTooltipAt(ev, d);
     const ine = d.properties.ine;
     const additive = ev.shiftKey || ev.ctrlKey || ev.metaKey;
     if (additive) {
@@ -1475,18 +2356,31 @@ function onMuniClick(ev, d) {
 }
 function moveTooltip(ev) {
     const mapEl = $(".map-area").getBoundingClientRect();
-    tooltip.style.left = (ev.clientX - mapEl.left) + "px";
-    tooltip.style.top = (ev.clientY - mapEl.top) + "px";
+    let x = ev.clientX - mapEl.left;
+    let y = ev.clientY - mapEl.top;
+    // The card is translated (-50%, -100%), so clamp with half its width and
+    // its full height: on a phone it was running off the edges of the map.
+    const w = tooltip.offsetWidth || 200;
+    const h = tooltip.offsetHeight || 90;
+    x = Math.max(w / 2 + 6, Math.min(x, mapEl.width - w / 2 - 6));
+    y = Math.max(h + 18, y);
+    tooltip.style.left = x + "px";
+    tooltip.style.top = y + "px";
 }
 function refreshSelectionStyles() {
+    scheduleURLSync();
     map.selectAll("path.municipio").classed("selected", false);
+    map.selectAll("circle.bubble-symbol").classed("selected", false);
     state.selectedInes.forEach(ine => {
         map.select(`path.municipio[data-ine="${ine}"]`).classed("selected", true);
+        map.selectAll("circle.bubble-symbol")
+            .filter(d => d?.feature?.properties?.ine === ine)
+            .classed("selected", true);
     });
 }
 
 // ───────── Selection sidebar ─────────
-function renderSelectionSidebar() {
+function renderSelectionSidebarLegacy() {
     const list = $("#selection-list");
     const help = $("#selection-help");
     const clearBtn = $("#clear-btn");
@@ -1536,6 +2430,84 @@ function renderSelectionSidebar() {
     drawMultiChart();
 }
 
+// Interaction help text: mouse vs. touch.
+function touchHelpText() {
+    return window.matchMedia("(pointer: coarse)").matches
+        ? "Toca un municipio para seleccionarlo.<br>Usa el buscador para comparar varios."
+        : "Haz clic en el mapa para seleccionar.<br>Mayús+clic para añadir.";
+}
+
+function renderSelectionSidebar() {
+    const list = $("#selection-list");
+    const help = $("#selection-help");
+    const clearBtn = $("#clear-btn");
+    const count = $("#selection-count");
+    const inChoropleth = isPaintableIndicator(state.indicator);
+
+    count.textContent = state.selectedInes.length;
+    list.innerHTML = "";
+    if (state.selectedInes.length === 0) {
+        help.style.display = "block";
+        help.innerHTML = touchHelpText();
+        clearBtn.style.display = "none";
+        d3.select("#sel-chart").selectAll("*").remove();
+        return;
+    }
+
+    help.style.display = inChoropleth ? "none" : "block";
+    help.innerHTML = inChoropleth
+        ? touchHelpText()
+        : "La capa activa muestra trazados; la selección solo localiza municipios.";
+    clearBtn.style.display = state.selectedInes.length > 0 ? "block" : "none";
+
+    const year = currentYear();
+    state.selectedInes.forEach((ine, i) => {
+        const m = state.data.municipios[ine];
+        if (!m) return;
+        const v = inChoropleth ? indicatorValue(ine, state.indicator, year) : null;
+        const fmt = state.indicator === 'cambio'   ? d3.format("+,.1f")
+                  : state.indicator === 'densidad' ? d3.format(",.1f")
+                  : (Math.abs(v ?? 0) >= 1000 ? d3.format(",.0f") : d3.format(",.2f"));
+        const suffix = state.indicator === 'cambio' ? '%' : '';
+        const valueHtml = inChoropleth
+            ? `<span class="selection-value">${v == null ? "&#8212;" : fmt(v) + suffix}</span>`
+            : "";
+        const item = document.createElement("div");
+        item.className = "selection-item";
+        item.innerHTML = `
+            <span class="selection-dot" style="background:${selectionSeriesColor(ine, i)}"></span>
+            <span class="selection-name" title="${m.name}">${m.name}</span>
+            ${valueHtml}
+            <button class="selection-remove" data-ine="${ine}" type="button" aria-label="Quitar ${m.name}">&times;</button>
+        `;
+        list.appendChild(item);
+    });
+
+    list.querySelectorAll(".selection-remove").forEach(el => {
+        el.addEventListener("click", (e) => {
+            const ine = e.currentTarget.dataset.ine;
+            state.selectedInes = state.selectedInes.filter(i => i !== ine);
+            refreshSelectionStyles();
+            renderSelectionSidebar();
+            renderDataView();
+        });
+    });
+
+    if (inChoropleth) {
+        drawMultiChart();
+    } else {
+        d3.select("#sel-chart").selectAll("*").remove();
+    }
+}
+
+function selectionSeriesColor(ine, index, layer = state.indicator, year = currentYear()) {
+    if (layer === "cambio") {
+        const v = indicatorValue(ine, "cambio", year);
+        if (v != null && Number.isFinite(v)) return colorScaleFor("cambio")(v);
+    }
+    return LINE_COLORS[index % LINE_COLORS.length];
+}
+
 function drawMultiChart() {
     const svg = d3.select("#sel-chart");
     svg.selectAll("*").remove();
@@ -1546,9 +2518,12 @@ function drawMultiChart() {
     const margin = { top: 10, right: 12, bottom: 18, left: 42 };
     const iw = w - margin.left - margin.right;
     const ih = h - margin.top - margin.bottom;
+    svg.attr("viewBox", `0 0 ${w} ${h}`)
+        .attr("width", w)
+        .attr("height", h);
 
     const layer = isPaintableIndicator(state.indicator) ? state.indicator : 'pob';
-    const yrs = indicatorYears(layer) || state.data.years;
+    const yrs = indicatorDisplayYears(layer) || state.data.years;
     const series = state.selectedInes.map((ine, i) => {
         const m = state.data.municipios[ine];
         if (!m) return null;
@@ -1557,7 +2532,7 @@ function drawMultiChart() {
             return { year: y, v };
         }).filter(d => d.v != null && Number.isFinite(d.v));
         if (!points.length) return null;
-        return { ine, name: m.name, color: LINE_COLORS[i % LINE_COLORS.length], points };
+        return { ine, name: m.name, color: selectionSeriesColor(ine, i, layer), points };
     }).filter(Boolean);
     if (series.length === 0) return;
 
@@ -1632,7 +2607,7 @@ function analysisLayer() {
 }
 
 function analysisYears(layer = analysisLayer()) {
-    return indicatorYears(layer) || state.data?.years || [];
+    return indicatorDisplayYears(layer) || state.data?.years || [];
 }
 
 function selectedMunicipios() {
@@ -1751,7 +2726,7 @@ function buildTrendSeries(selected, indicators) {
     const out = [];
     selected.forEach((muni, muniIndex) => {
         indicators.forEach((indId, indicatorIndex) => {
-            const years = indicatorYears(indId) || [];
+            const years = indicatorDisplayYears(indId) || [];
             const meta = indicatorMeta(indId);
             const points = years.map(y => ({ year: y, v: indicatorValue(muni.ine, indId, y) }))
                 .filter(d => d.v != null && Number.isFinite(d.v));
@@ -1910,8 +2885,16 @@ function drawTrendPanel(svg, panel, x0, y0, panelW, panelH, xDomain, yDomain, op
         g.append("line").attr("class", "year-marker")
             .attr("x1", x(cy)).attr("x2", x(cy)).attr("y1", 0).attr("y2", ih);
     }
+    // Year ticks: drop any label that would sit closer than 34 px to its neighbour (F11).
+    const MIN_TICK_PX = 34;
     const tickYears = [xDomain[0], ...d3.ticks(xDomain[0], xDomain[1], opts.facet ? 3 : 4), xDomain[1]]
-        .filter((yr, i, arr) => Number.isFinite(yr) && arr.indexOf(yr) === i);
+        .filter((yr, i, arr) => Number.isFinite(yr) && arr.indexOf(yr) === i)
+        .sort((a, b) => a - b)
+        .reduceRight((keep, yr) => {
+            // walk from the last year backwards so the final year always survives
+            if (!keep.length || Math.abs(x(keep[0]) - x(yr)) >= MIN_TICK_PX) keep.unshift(yr);
+            return keep;
+        }, []);
     tickYears.forEach(yr => {
         g.append("text").attr("class", "axis-label")
             .attr("x", x(yr)).attr("y", ih + 18).attr("text-anchor", "middle").text(Math.round(yr));
@@ -2927,17 +3910,17 @@ function renderTrendsView() {
     renderTrendControls();
     const indicators = activeTrendIndicators();
     const meta = indicators.length === 1 ? indicatorMeta(indicators[0]) : null;
-    $("#data-view-kicker").textContent = "Evolucion historica";
+    $("#data-view-kicker").textContent = "Evolución histórica";
     const isClimogram = supportsClimateAnnualViews() && state.climateTrendMode === "climogram";
     $("#data-view-title").textContent = isClimogram ? "Climograma" : (meta ? meta.name : `${indicators.length} indicadores`);
     const modeLabel = supportsClimateAnnualViews()
         ? {
-            series: "Series historicas",
+            series: "Series históricas",
             stripes: "Anomalias",
             decades: "Decadas",
             climogram: "Climograma mensual"
         }[state.climateTrendMode]
-        : "Series historicas";
+        : "Series históricas";
     $("#data-view-desc").textContent = isClimogram
         ? "Temperatura y precipitacion mensual"
         : (meta?.unit ? `${modeLabel} - ${meta.unit}` : modeLabel);
@@ -2977,7 +3960,7 @@ function renderSeriesTableView() {
     const meta = indicatorMeta(layer);
     const fmt = indicatorFormat(layer);
     const selected = selectedMunicipios();
-    $("#data-view-kicker").textContent = "Serie historica";
+    $("#data-view-kicker").textContent = "Serie histórica";
     $("#data-view-title").textContent = "Tabla";
     $("#data-view-desc").textContent = selected.length
         ? `Valores historicos de ${meta.name} para los municipios seleccionados.`
@@ -3024,7 +4007,7 @@ function renderAboutIndicatorCards() {
             <h3>${ind.name}</h3>
             <p>${d.source}</p>
             <div class="card-more">
-                <p><strong>Metodo.</strong> ${d.method}</p>
+                <p><strong>Método.</strong> ${d.method}</p>
                 <p><strong>Cita.</strong> ${d.citation}</p>
             </div>
         `;
@@ -3061,6 +4044,9 @@ async function switchCategory(catId) {
     state.indicator = def || null;
     state.selectedTrendIndicators = state.indicator ? [state.indicator] : [];
     if (catId === "transporte") {
+        state.transportMode = "networks";
+        state.indicator = null;
+        state.selectedTrendIndicators = [];
         state.activeOverlays = new Set(CATEGORIES[catId].autoOverlays || []);
         await renderActiveOverlays();
     }
@@ -3123,12 +4109,98 @@ function syncCensusToIndicator() {
         setTimelineYears(overlayYears, preferredYear);
         return;
     }
-    const yrs = indicatorYears(state.indicator);
+    const yrs = indicatorDisplayYears(state.indicator);
     if (yrs && yrs.length > 0) {
         setTimelineYears(yrs, preferredYear);
     } else {
         setTimelineYears([2025], preferredYear);
     }
+}
+
+function transportIndicatorsByKind(kind) {
+    return (CATEGORIES.transporte?.indicators || []).filter(ind => ind.kind === kind);
+}
+
+function transportCurrentDistanceId(cat) {
+    const distances = transportIndicatorsByKind("distance");
+    if (distances.some(ind => ind.id === state.indicator)) return state.indicator;
+    return cat.distanceDefault || distances[0]?.id || "";
+}
+
+function setTransportHeaderFromSelection(value, mode) {
+    const indicators = mode === "distances" ? transportIndicatorsByKind("distance") : transportIndicatorsByKind("overlay");
+    const cur = indicators.find(i => i.id === value);
+    if (cur) {
+        $("#indicator-name").textContent = cur.name;
+        $("#indicator-desc").textContent = cur.desc;
+        return;
+    }
+    $("#indicator-name").textContent = mode === "distances" ? "Distancias de transporte" : "Redes de transporte";
+    $("#indicator-desc").textContent = mode === "distances"
+        ? "Distancia municipal a infraestructuras y redes de transporte."
+        : "Trazados históricos superpuestos sobre el mapa base.";
+}
+
+function renderTransportIndicatorList(list, cat) {
+    const mode = state.transportMode === "distances" ? "distances" : "networks";
+    const networks = transportIndicatorsByKind("overlay");
+    const distances = transportIndicatorsByKind("distance");
+
+    const toggle = document.createElement("div");
+    toggle.className = "transport-mode-toggle";
+    [
+        ["networks", "Redes"],
+        ["distances", "Distancias"],
+    ].forEach(([id, label]) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "transport-mode-btn" + (mode === id ? " active" : "");
+        btn.textContent = label;
+        btn.addEventListener("click", async () => {
+            if (state.transportMode === id) return;
+            state.transportMode = id;
+            if (id === "networks") {
+                await selectIndicatorFromDropdown("__all_routes");
+            } else {
+                await selectIndicatorFromDropdown(transportCurrentDistanceId(cat));
+            }
+        });
+        toggle.appendChild(btn);
+    });
+    list.appendChild(toggle);
+
+    const select = document.createElement("select");
+    select.className = "indicator-select";
+    if (mode === "networks") {
+        const allOpt = document.createElement("option");
+        allOpt.value = "__all_routes";
+        allOpt.textContent = "Todas las redes";
+        select.appendChild(allOpt);
+        networks.forEach(ind => {
+            const opt = document.createElement("option");
+            opt.value = ind.id;
+            opt.textContent = ind.name;
+            select.appendChild(opt);
+        });
+        if (state.activeOverlays.size > 1) {
+            select.value = "__all_routes";
+        } else if (state.activeOverlays.size === 1) {
+            select.value = [...state.activeOverlays][0];
+        } else {
+            select.value = "__all_routes";
+        }
+    } else {
+        distances.forEach(ind => {
+            const opt = document.createElement("option");
+            opt.value = ind.id;
+            opt.textContent = ind.name;
+            select.appendChild(opt);
+        });
+        select.value = transportCurrentDistanceId(cat);
+    }
+    select.addEventListener("change", () => selectIndicatorFromDropdown(select.value));
+    list.appendChild(select);
+    setTransportHeaderFromSelection(select.value, mode);
 }
 
 function renderIndicatorList() {
@@ -3143,6 +4215,11 @@ function renderIndicatorList() {
     if (cat.type === "placeholder") {
         $("#indicator-name").textContent = cat.label;
         $("#indicator-desc").textContent = "Próximamente. En desarrollo.";
+        return;
+    }
+
+    if (state.category === "transporte") {
+        renderTransportIndicatorList(list, cat);
         return;
     }
 
@@ -3180,7 +4257,7 @@ function renderIndicatorList() {
             : cur.desc;
     } else if (select.value === "__all_routes" || state.category === 'transporte' || indList.every(i => i.kind === 'overlay')) {
         $("#indicator-name").textContent = cat.label;
-        $("#indicator-desc").textContent = "Trazados historicos superpuestos sobre el mapa base.";
+        $("#indicator-desc").textContent = "Trazados históricos superpuestos sobre el mapa base.";
     }
 }
 
@@ -3188,9 +4265,10 @@ async function selectIndicatorFromDropdown(value) {
     const cat = CATEGORIES[state.category];
     const ind = cat?.indicators.find(i => i.id === value);
     if (value === "__all_routes") {
+        state.transportMode = "networks";
         state.indicator = null;
         state.selectedTrendIndicators = [];
-        state.activeOverlays = new Set(OVERLAY_INDICATORS.map(o => o.id));
+        state.activeOverlays = new Set(transportIndicatorsByKind("overlay").map(o => o.id));
         await renderActiveOverlays();
         syncCensusToIndicator();
         setupTimeline();
@@ -3201,6 +4279,7 @@ async function selectIndicatorFromDropdown(value) {
     }
     if (!ind) return;
     if (ind.kind === "overlay") {
+        state.transportMode = "networks";
         state.indicator = ind.id;
         state.selectedTrendIndicators = [];
         state.activeOverlays = new Set([ind.id]);
@@ -3211,6 +4290,11 @@ async function selectIndicatorFromDropdown(value) {
         paintMunicipios();
         renderSelectionSidebar();
         return;
+    }
+    if (state.category === "transporte") {
+        state.transportMode = "distances";
+        state.activeOverlays.clear();
+        map.select("g.layer-overlays").selectAll("*").remove();
     }
     state.indicator = ind.id;
     state.selectedTrendIndicators = [ind.id];
@@ -3284,7 +4368,7 @@ function overlayLabel(ind, feature) {
         const meta = [p.clase, p.certeza].filter(Boolean).join(" · ");
         return {
             title: ind.name,
-            meta: meta || "Trazado historico",
+            meta: meta || "Trazado histórico",
             value: Number.isFinite(+p.longitud_km) ? `${d3.format(",.1f")(+p.longitud_km)} km` : "",
         };
     }
@@ -3361,13 +4445,16 @@ function setupTimeline() {
         updateTimelineHandle();
         return;
     }
-    // Etiquetas en años clave (cada ~25 años, ajustado al rango disponible)
+    // Year labels: the step adapts to the pixel width of the track so labels never collide (F11).
     const labelYears = new Set();
     const span = YEAR_MAX - YEAR_MIN;
-    const step = span > 200 ? 50 : span > 100 ? 25 : 10;
+    const trackPx = Math.max(120, tl.getBoundingClientRect().width || 600);
+    const MIN_LABEL_PX = 64;
+    const step = [10, 25, 50, 100, 200, 500].find(st => (span / st + 1) * MIN_LABEL_PX <= trackPx) ?? 500;
     for (let y = Math.ceil(YEAR_MIN / step) * step; y <= YEAR_MAX; y += step) labelYears.add(y);
-    labelYears.add(YEAR_MIN);
-    labelYears.add(YEAR_MAX);
+    const tooClose = (a) => [...labelYears].some(y => y !== a && Math.abs(y - a) < step * 0.45);
+    if (!tooClose(YEAR_MIN)) labelYears.add(YEAR_MIN);
+    if (!tooClose(YEAR_MAX)) labelYears.add(YEAR_MAX);
 
     CENSUS.forEach((y) => {
         const pct = ((y - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) * 100;
@@ -3387,9 +4474,37 @@ function setupTimeline() {
     if (_timelineHandlersBound) return;  // attach drag handlers only once
     _timelineHandlersBound = true;
     let dragging = false;
-    tl.addEventListener("mousedown", (e) => { dragging = true; onTimelineClick(e); });
-    window.addEventListener("mouseup", () => dragging = false);
-    window.addEventListener("mousemove", e => { if (dragging) onTimelineClick(e); });
+    const endDrag = (e) => {
+        if (!dragging) return;
+        dragging = false;
+        if (e && e.pointerId != null && tl.hasPointerCapture?.(e.pointerId)) tl.releasePointerCapture(e.pointerId);
+    };
+    // Pointer Events: one code path for mouse, touch and pen (same recipe as web_andalusia).
+    tl.addEventListener("pointerdown", (e) => {
+        dragging = true;
+        tl.setPointerCapture?.(e.pointerId);
+        e.preventDefault();
+        onTimelineClick(e);
+    });
+    tl.addEventListener("pointermove", (e) => { if (dragging) { e.preventDefault(); onTimelineClick(e); } });
+    tl.addEventListener("pointerup", endDrag);
+    tl.addEventListener("pointercancel", endDrag);
+    window.addEventListener("pointerup", endDrag);
+    window.addEventListener("pointercancel", endDrag);
+
+    // Year step buttons (keyboard/touch friendly alternative to dragging).
+    const stepYear = (delta) => {
+        const next = Math.max(0, Math.min(CENSUS.length - 1, state.yearIdx + delta));
+        if (next === state.yearIdx) return;
+        state.yearIdx = next;
+        state.animFrameYear = null;
+        stopPlay();
+        paintMunicipios();
+        renderSelectionSidebar();
+        updateTimelineHandle();
+    };
+    $("#year-prev")?.addEventListener("click", () => stepYear(-1));
+    $("#year-next")?.addEventListener("click", () => stepYear(1));
 }
 
 function onTimelineClick(ev) {
@@ -3423,6 +4538,7 @@ function startPlay() {
     let startY = state.animFrameYear ?? CENSUS[state.yearIdx];
     if (startY >= YEAR_MAX) startY = YEAR_MIN;
     state.animFrameYear = startY;
+    const frameMs = state.visualMode === "choropleth" ? 80 : 900;
     state.playTimer = setInterval(() => {
         let y = state.animFrameYear + 1;
         if (y > YEAR_MAX) { stopPlay(); state.animFrameYear = null; return; }
@@ -3433,9 +4549,10 @@ function startPlay() {
         paintMunicipios();
         renderSelectionSidebar();
         updateTimelineHandle();
-    }, 80);
+    }, frameMs);
 }
 function stopPlay() {
+    setTimeout(scheduleURLSync, 60);
     state.playing = false;
     if (state.playTimer) { clearInterval(state.playTimer); state.playTimer = null; }
     $("#play-btn").innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>';
@@ -3447,6 +4564,14 @@ function applyViewLevelClass() {
         .classed("view-mun", state.viewLevel === "mun")
         .classed("view-prov", state.viewLevel === "prov")
         .classed("view-ccaa", state.viewLevel === "ccaa");
+}
+
+function setVisualMode(mode) {
+    if (!["choropleth", "bubbles", "relief"].includes(mode)) return;
+    if (mode !== "choropleth" && !isPaintableIndicator(state.indicator)) return;
+    state.visualMode = mode;
+    applyVisualModeClass();
+    paintMunicipios();
 }
 
 function setViewLevel(level) {
@@ -3520,13 +4645,357 @@ function setupNavTabs() {
     document.querySelectorAll("[data-tab]").forEach(btn => {
         btn.addEventListener("click", () => {
             setMainTab(btn.dataset.tab);
+            scheduleURLSync();
         });
     });
 }
 
 // ───────── Init ─────────
+// ============================================================================
+// SHARE / EXPORT / RESET
+// The three things that make a viewer citable: a URL that carries the current
+// view, an export of exactly what is on screen, and a way back to the start.
+// ============================================================================
+
+let _urlSyncTimer = null;
+
+// The subset of the state that is worth carrying in a link.
+function buildStateParams() {
+    const p = new URLSearchParams();
+    if (state.category) p.set("cat", state.category);
+    if (state.indicator) p.set("ind", state.indicator);
+    const y = currentYear();
+    if (Number.isFinite(y)) p.set("year", String(Math.round(y)));
+    if (state.mainTab && state.mainTab !== "map") p.set("tab", state.mainTab);
+    if (state.viewLevel !== "mun") p.set("level", state.viewLevel);
+    if (state.visualMode !== "choropleth") p.set("vis", state.visualMode);
+    if (state.selectedInes.length) p.set("sel", state.selectedInes.slice(0, 60).join(","));
+    return p;
+}
+
+function permalinkURL() {
+    return location.origin + location.pathname + location.search + "#" + buildStateParams().toString();
+}
+
+// Debounced: the time-lapse would otherwise hit the browser's replaceState
+// rate limit, so the URL is only refreshed once the animation stops.
+function writeURLNow() {
+    try {
+        history.replaceState(null, "", "#" + buildStateParams().toString());
+    } catch (e) { /* private mode / rate limit: the link button still works */ }
+}
+
+function scheduleURLSync() {
+    if (state.playing) return;
+    clearTimeout(_urlSyncTimer);
+    _urlSyncTimer = setTimeout(writeURLNow, 400);
+}
+
+function goToYear(year) {
+    if (!CENSUS.length) return;
+    let bestI = 0, bestD = Infinity;
+    CENSUS.forEach((y, i) => { const d = Math.abs(y - year); if (d < bestD) { bestD = d; bestI = i; } });
+    state.yearIdx = bestI;
+    state.animFrameYear = null;
+    paintMunicipios();
+    renderSelectionSidebar();
+    updateTimelineHandle();
+}
+
+// Restore everything a link carries, in the same order a reader would click it.
+async function applyStateFromURL() {
+    const raw = location.hash.replace(/^#/, "");
+    if (!raw || raw.indexOf("=") < 0) return false;
+    const p = new URLSearchParams(raw);
+
+    const cat = p.get("cat");
+    if (cat && CATEGORIES[cat] && cat !== state.category) await switchCategory(cat);
+
+    const ind = p.get("ind");
+    if (ind && ind !== state.indicator) await selectIndicatorFromDropdown(ind);
+
+    const level = p.get("level");
+    if (level) setViewLevel(level);
+
+    const vis = p.get("vis");
+    if (vis) setVisualMode(vis);
+
+    const year = Number(p.get("year"));
+    if (Number.isFinite(year) && year > 0) goToYear(year);
+
+    const sel = (p.get("sel") || "").split(",").filter(Boolean);
+    if (sel.length) {
+        state.selectedInes = sel;
+        refreshSelectionStyles();
+        renderSelectionSidebar();
+    }
+
+    const tab = p.get("tab");
+    if (tab) document.querySelector(`.nav-btn[data-tab="${tab}"]`)?.click();
+
+    return true;
+}
+
+function flashAction(btn, text) {
+    if (!btn) return;
+    const prev = btn.textContent;
+    btn.textContent = text;
+    btn.disabled = true;
+    setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 1400);
+}
+
+async function copyPermalink(btn) {
+    const url = permalinkURL();
+    try {
+        history.replaceState(null, "", "#" + buildStateParams().toString());
+    } catch (e) { /* ignore */ }
+    try {
+        await navigator.clipboard.writeText(url);
+        flashAction(btn, "Copiado");
+    } catch (e) {
+        window.prompt("Copia el enlace:", url);
+    }
+}
+
+// ───────── Export: what is on screen, not the whole database ─────────
+
+function exportSlug(text) {
+    return String(text || "")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "atlas";
+}
+
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function csvCell(v) {
+    if (v == null) return "";
+    const s = String(v);
+    return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function csvFromRows(rows) {
+    // Semicolon separator + BOM: opens straight into Excel in a Spanish locale.
+    return "\ufeff" + rows.map(r => r.map(csvCell).join(";")).join("\r\n");
+}
+
+function currentIndicatorLabel() {
+    const cat = CATEGORIES[state.category];
+    const ind = cat?.indicators?.find(i => i.id === state.indicator);
+    return displayIndicatorName(ind?.name || state.indicator || "indicador");
+}
+
+function currentIndicatorUnit() {
+    const meta = catalogIndicator(state.indicator);
+    return effectiveIndicatorUnit(state.indicator, meta?.unit || "");
+}
+
+function levelLabel() {
+    return state.viewLevel === "prov" ? "Provincia" : state.viewLevel === "ccaa" ? "CCAA" : "Municipio";
+}
+
+function exportVisibleCSV(btn) {
+    const year = Math.round(currentYear());
+    const indLabel = currentIndicatorLabel();
+    const unit = currentIndicatorUnit();
+    const details = sourceDetailsForIndicator(state.indicator);
+    const rows = [];
+    let filename;
+
+    const onTrends = state.mainTab === "trends" && state.selectedInes.length > 0;
+    if (onTrends) {
+        // The trend panel: the selected territories across the whole year grid.
+        const inds = state.selectedTrendIndicators.length ? state.selectedTrendIndicators : [state.indicator];
+        rows.push(["indicador", "codigo", "nombre", "anio", "valor", "unidad"]);
+        inds.filter(Boolean).forEach(indId => {
+            const label = displayIndicatorName(
+                CATEGORIES[state.category]?.indicators?.find(i => i.id === indId)?.name || indId);
+            const u = effectiveIndicatorUnit(indId, catalogIndicator(indId)?.unit || "");
+            state.selectedInes.forEach(ine => {
+                const name = state.data?.municipios?.[ine]?.name || ine;
+                (indicatorDisplayYears(indId) || CENSUS).forEach(yr => {
+                    const v = indicatorValue(ine, indId, yr);
+                    if (v == null || !Number.isFinite(v)) return;
+                    rows.push([label, ine, name, yr, v, u]);
+                });
+            });
+        });
+        const yrs = indicatorDisplayYears(state.indicator) || CENSUS;
+        filename = `atlas-municipal_${exportSlug(indLabel)}_${yrs[0]}-${yrs[yrs.length - 1]}_series.csv`;
+    } else {
+        // Map / ranking / table: one row per visible territory, current year.
+        rows.push([levelLabel().toLowerCase() + "_codigo", "nombre", "anio", indLabel, "unidad"]);
+        const grouped = state.viewLevel === "mun" ? null : aggregateValuesForLevel(state.viewLevel, state.indicator, year);
+        const seen = new Set();
+        activeFeaturesForView().forEach(f => {
+            const key = activeFeatureKey(f);
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            const v = displayValueForFeature(f, state.indicator, year, grouped);
+            rows.push([key, groupNameForFeature(f), year, (v == null || !Number.isFinite(v)) ? "" : v, unit]);
+        });
+        filename = `atlas-municipal_${exportSlug(indLabel)}_${year}_${state.viewLevel}.csv`;
+    }
+
+    rows.push([]);
+    rows.push(["# Atlas Historico Municipal de Espana"]);
+    rows.push(["# Indicador", indLabel + (unit ? ` (${unit})` : "")]);
+    rows.push(["# Fuente", details.source]);
+    rows.push(["# Metodo", details.method]);
+    rows.push(["# Enlace", permalinkURL()]);
+
+    downloadBlob(new Blob([csvFromRows(rows)], { type: "text/csv;charset=utf-8" }), filename);
+    flashAction(btn, "CSV ✓");
+}
+
+// The SVG that is actually on screen right now.
+function visibleExportSVG() {
+    if (document.body.classList.contains("show-data")) {
+        const host = $("#data-view");
+        const svgs = host ? Array.from(host.querySelectorAll("svg")) : [];
+        const shown = svgs.find(s => s.getBoundingClientRect().width > 40);
+        if (shown) return shown;
+    }
+    return $("#map");
+}
+
+function pageStyleSheetText() {
+    let css = "";
+    for (const sheet of Array.from(document.styleSheets)) {
+        let rules;
+        try { rules = sheet.cssRules; } catch (e) { continue; } // cross-origin (fonts)
+        if (!rules) continue;
+        for (const rule of Array.from(rules)) {
+            const t = rule.cssText || "";
+            if (t.startsWith("@import") || t.startsWith("@font-face")) continue;
+            css += t + "\n";
+        }
+    }
+    return css;
+}
+
+async function exportVisiblePNG(btn) {
+    const svg = visibleExportSVG();
+    if (!svg) { flashAction(btn, "Sin figura"); return; }
+
+    const rect = svg.getBoundingClientRect();
+    const w = Math.max(600, Math.round(rect.width));
+    const h = Math.max(400, Math.round(rect.height));
+    const scale = 2;
+    const padTop = 74, padBottom = 54, padSide = 26;
+
+    const clone = svg.cloneNode(true);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width", w);
+    clone.setAttribute("height", h);
+    if (!clone.getAttribute("viewBox")) clone.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    const styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
+    styleEl.textContent = pageStyleSheetText();
+    clone.insertBefore(styleEl, clone.firstChild);
+
+    const svgText = new XMLSerializer().serializeToString(clone);
+    const svgURL = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgText);
+
+    const img = new Image();
+    const loaded = new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+    img.src = svgURL;
+    try { await loaded; } catch (e) { flashAction(btn, "Error"); return; }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = (w + padSide * 2) * scale;
+    canvas.height = (h + padTop + padBottom) * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(scale, scale);
+
+    const css = getComputedStyle(document.documentElement);
+    const paper = css.getPropertyValue("--bg").trim() || "#fbf6e9";
+    const ink = css.getPropertyValue("--ink").trim() || "#332a1e";
+    const mute = css.getPropertyValue("--ink-mute").trim() || "#75664f";
+    const rule = css.getPropertyValue("--rule").trim() || "#c9c0ad";
+
+    ctx.fillStyle = paper;
+    ctx.fillRect(0, 0, w + padSide * 2, h + padTop + padBottom);
+    ctx.drawImage(img, padSide, padTop, w, h);
+
+    // Title, year and source inside the canvas, so a screenshot stands alone.
+    const year = Math.round(currentYear());
+    const indLabel = currentIndicatorLabel();
+    const unit = currentIndicatorUnit();
+    const details = sourceDetailsForIndicator(state.indicator);
+
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = mute;
+    ctx.font = "700 10px 'Alegreya Sans', Inter, system-ui, sans-serif";
+    ctx.fillText("ATLAS HISTÓRICO MUNICIPAL DE ESPAÑA", padSide, 24);
+    ctx.fillStyle = ink;
+    ctx.font = "600 19px 'EB Garamond', 'Source Serif Pro', Georgia, serif";
+    ctx.fillText(`${indLabel}${unit ? ` (${unit})` : ""} · ${year}`, padSide, 50);
+    ctx.fillStyle = mute;
+    ctx.font = "400 10.5px 'Alegreya Sans', Inter, system-ui, sans-serif";
+    ctx.fillText(`${levelLabel()} · ${year}`, padSide, 65);
+
+    ctx.strokeStyle = rule;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padSide, h + padTop + 16);
+    ctx.lineTo(w + padSide, h + padTop + 16);
+    ctx.stroke();
+    ctx.fillStyle = mute;
+    ctx.font = "400 10px 'Alegreya Sans', Inter, system-ui, sans-serif";
+    const srcLine = "Fuente: " + details.source;
+    ctx.fillText(srcLine.length > 150 ? srcLine.slice(0, 147) + "…" : srcLine, padSide, h + padTop + 33);
+    ctx.fillText(permalinkURL().slice(0, 150), padSide, h + padTop + 47);
+
+    canvas.toBlob(blob => {
+        if (!blob) { flashAction(btn, "Error"); return; }
+        downloadBlob(blob, `atlas-municipal_${exportSlug(indLabel)}_${year}.png`);
+        flashAction(btn, "PNG ✓");
+    }, "image/png");
+}
+
+// ───────── Reset ─────────
+
+async function resetViewer() {
+    stopPlay();
+    state.selectedInes = [];
+    state.selectedTrendIndicators = [];
+    state.activeOverlays.clear();
+    state.visualMode = "choropleth";
+    map.select("g.layer-overlays").selectAll("*").remove();
+    setVisualMode("choropleth");
+    setViewLevel("mun");
+    mapZoomReset();
+    await switchCategory("poblacion");
+    await selectIndicatorFromDropdown("pob");
+    state.yearIdx = CENSUS.length - 1;
+    state.animFrameYear = null;
+    document.querySelector('.nav-btn[data-tab="map"]')?.click();
+    refreshSelectionStyles();
+    renderSelectionSidebar();
+    paintMunicipios();
+    updateTimelineHandle();
+    writeURLNow();
+    setTimeout(writeURLNow, 500);   // after the map redraw settles
+}
+
+function setupShareBar() {
+    $("#act-link")?.addEventListener("click", (e) => copyPermalink(e.currentTarget));
+    $("#act-csv")?.addEventListener("click", (e) => exportVisibleCSV(e.currentTarget));
+    $("#act-png")?.addEventListener("click", (e) => exportVisiblePNG(e.currentTarget));
+    $("#act-reset")?.addEventListener("click", (e) => { resetViewer(); flashAction(e.currentTarget, "Hecho"); });
+}
+
+// ───── Init ─────
+
 async function init() {
-    setupIntro();
     setupNavTabs();
     setupSidebarResize();
     await loadData();
@@ -3551,7 +5020,6 @@ async function init() {
     });
     syncCensusToIndicator();
     await renderMapProgressive();
-    renderIntroMap();
     setupTimeline();
     buildCategoryTabs();
     renderAboutIndicatorCards();
@@ -3560,6 +5028,18 @@ async function init() {
     renderSelectionSidebar();
 
     $("#play-btn").addEventListener("click", () => state.playing ? stopPlay() : startPlay());
+    $("#btn-visual-choropleth")?.addEventListener("click", () => setVisualMode("choropleth"));
+    $("#btn-visual-bubbles")?.addEventListener("click", () => setVisualMode("bubbles"));
+    $("#btn-visual-relief")?.addEventListener("click", () => setVisualMode("relief"));
+    $("#sheet-toggle")?.addEventListener("click", (e) => {
+        const layout = document.querySelector(".layout");
+        const collapsed = layout.classList.toggle("sheet-collapsed");
+        e.currentTarget.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        window.dispatchEvent(new Event("resize"));
+    });
+    $("#zoom-in")?.addEventListener("click", () => mapZoomBy(1.6));
+    $("#zoom-out")?.addEventListener("click", () => mapZoomBy(1 / 1.6));
+    $("#zoom-reset")?.addEventListener("click", mapZoomReset);
     $("#btn-mun").addEventListener("click", () => setViewLevel("mun"));
     $("#btn-prov").addEventListener("click", () => setViewLevel("prov"));
     $("#btn-ccaa").addEventListener("click", () => setViewLevel("ccaa"));
@@ -3572,12 +5052,16 @@ async function init() {
     $(".map-area").addEventListener("mousemove", e => {
         if (tooltip.classList.contains("visible")) moveTooltip(e);
     });
+    setupShareBar();
+    await applyStateFromURL();
+    scheduleURLSync();
+
     let resizeTimer;
     window.addEventListener("resize", () => {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(() => {
             renderMapProgressive();
-            renderIntroMap();
+            setupTimeline();
             if (document.body.classList.contains("show-data") && state.mainTab === "trends") {
                 renderDataView();
             }

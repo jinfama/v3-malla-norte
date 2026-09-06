@@ -1,15 +1,22 @@
-# Basura de sistema / entornos — NUNCA versionar
-.venv/
-venv/
-__pycache__/
-node_modules/
+# Scripts de conversión de datos (no desplegar)
+build/
+_server.py
+
+# Capturas de verificación de render (no forman parte del visor)
+_*.png
+
+# Datos que el visor no carga: 0 referencias en js/ y en index.html (comprobado 2026-09-05).
+# Se quedan en OneDrive, simplemente no viajan al repo público.
+data/poblacion_anual.json
+
+# Lanzadores locales
+abrir_atlas_municipal.bat
+
+# Backups
+*.bak
+
+# Sistema
 .DS_Store
 Thumbs.db
-
-# Conflictos de sincronización de OneDrive
-*-jinfama.*
-
-# Carpetas de build / datos intermedios regenerables (no inflar el historial)
-build/
-.cache/
-*.tmp
+desktop.ini
+__pycache__/
