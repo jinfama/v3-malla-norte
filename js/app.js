@@ -72,10 +72,20 @@ const CLIMATE_TEMP_COLORS = DIVERGING_COLORS;             // frio (ceniza) → c
 const CLIMATE_FROST_COLORS = SEQ_COOL;                    // sin heladas (crema) → muchas (ceniza)
 const CLIMATE_DIVERGING_COLORS = DIVERGING_COLORS.slice().reverse(); // SPEI: seco = calido
 
-// Series de los graficos. Ocho colores categoricos: minima distancia mutua
-// 15,1 dE2000 en vision tricromatica, 14,1 en deuteranopia y 15,0 en
-// protanopia, y >= 3,05:1 de contraste WCAG sobre el papel --cal.
-const LINE_COLORS = ["#a8432a", "#4e5c62", "#9e8e38", "#1d3b79", "#789485", "#6d252a", "#4d689c", "#4491e0"];
+// Series de los graficos. Ocho colores categoricos. Portada V7 (2026-09-08):
+// los dos azules ajenos a la familia (#1d3b79 marino, #4491e0 celeste) se
+// sustituyen por el teal de la portada (#114855) y un verde de agua oscuro
+// (#3f6f5c). Remedido: minima distancia mutua 12,0 dE2000 en vision
+// tricromatica y 8,7 en deuteranopia y protanopia (antes 15,1 / 14,1 / 15,0;
+// umbral de separable 5), y >= 3,05:1 de contraste WCAG sobre el papel --cal.
+const LINE_COLORS = ["#a8432a", "#4e5c62", "#9e8e38", "#114855", "#789485", "#6d252a", "#4d689c", "#3f6f5c"];
+
+// Hidrologia: las superficies y volumenes de embalse son agua y van en la
+// familia fria (SEQ_COOL, crema → teal), como las distancias a rios, la lluvia
+// y las heladas. Misma rampa de 7 clases, mismas medidas de separacion.
+function isWaterLayer(id) {
+    return /^(Reservoir_|Usable_reservoir_|Vol_)/i.test(id || "");
+}
 
 // Categorias que NO son valores. Tienen que distinguirse del degradado, del
 // lienzo del mapa y entre si:
@@ -2221,7 +2231,7 @@ function _computeScaleForLayer(layer) {
         return tag({ kind: 'log', fn, breaks: { ext: [lo, hi] }, signed: false, values, colors: SEQ_WARM });
     }
 
-    return tag(buildClassedScale(values, SEQ_WARM, 'quantile'));
+    return tag(buildClassedScale(values, isWaterLayer(layer) ? SEQ_COOL : SEQ_WARM, 'quantile'));
 }
 
 function colorScaleFor(layer /*, year ignored — scale is constant */) {

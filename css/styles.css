@@ -12,11 +12,19 @@
        colores de las capas de transporte se quedan EXACTAMENTE como estaban. */
     --bg: #fbf6e9;            /* --cal de la portada: paneles y superficies */
     --bg-alt: #f1e9d7;        /* --papel de la portada: fondo hundido y hover */
-    --bg-map: #e9eff0;        /* lienzo del mapa (agua/vacio): se queda FRIO a
-                                 proposito. El quintil bajo de POP_COLORS (#fbe8c2)
-                                 se eligio para leerse sobre este gris-ceniza; en
-                                 crema desapareceria. Tampoco es el color de
-                                 "sin dato" (ese es NO_DATA_COLOR en js/app.js). */
+    --bg-map: #eceae8;        /* lienzo del mapa (agua/vacio): gris de papel, ya
+                                 no el gris-azul #e9eff0 de antes (portada V7,
+                                 2026-09-08: «la paleta del interior es la de la
+                                 portada»). Remedido con dE2000 contra las 21
+                                 clases de las tres rampas, «cero», «sin dato» y
+                                 la tierra base, tambien en deuteranopia y
+                                 protanopia: minimo 6,07 dE (antes 7,73; umbral
+                                 de separable 5). No es el color de "sin dato"
+                                 (ese es NO_DATA_COLOR en js/app.js). */
+    --teal: #114855;          /* --teal de la portada: agua (embalses, rios,
+                                 precipitacion), extremo de SEQ_COOL */
+    --teal-soft: #2f6570;     /* teal asentado para trazos y texto (6,05:1) */
+    --teal-wash: rgba(17,72,85,0.08);
     --ink: #332a1e;           /* --tinta */
     --ink-soft: #584735;      /* --tinta2 */
     --ink-mute: #75664f;      /* --muted (#8b7a62) asentado: el original da 3,8:1
@@ -451,10 +459,15 @@ body.resizing-sidebar {
     border-top-width: 2px;
     border-top-style: solid;
 }
-.legend-line.ov-roman { border-top: 2px dashed #8f3b1f; }
-.legend-line.ov-rail-iberian { border-top: 2px solid #22384a; }
-.legend-line.ov-rail-narrow { border-top: 2px dashed #4f8b99; }
-.legend-line.ov-rail-hsr { border-top: 2.5px solid #7c5c9c; }
+/* Las cuatro tintas de las redes son las de la portada V7 (2026-09-08):
+   calzadas = sanguina oscura a trazos, via iberica = tinta, via estrecha =
+   teal a trazos, AVE = minio. Medidas: pares a >= 18,6 dE (>= 10,9 en
+   protanopia, calzadas/iberica, que ademas se separan por el trazo);
+   sobre la tierra base #f1e9d7, el mas claro (minio) da 3,69:1. */
+.legend-line.ov-roman { border-top: 2px dashed var(--accent-strong); }
+.legend-line.ov-rail-iberian { border-top: 2px solid var(--ink); }
+.legend-line.ov-rail-narrow { border-top: 2px dashed var(--teal); }
+.legend-line.ov-rail-hsr { border-top: 2.5px solid #c4562b; }
 
 /* Barra continua: se usa cuando el relleno del mapa es continuo, para que la
    leyenda no prometa escalones que el mapa no dibuja. Revisado 2026-09-06. */
@@ -602,8 +615,8 @@ body.resizing-sidebar {
     fill: var(--bg-map);
 }
 .map .country-fill {
-    fill: #e7ece9;
-    stroke: rgba(43, 58, 66, 0.28);
+    fill: var(--bg-alt);
+    stroke: rgba(51, 42, 30, 0.30);
     stroke-width: 0.7;
     pointer-events: none;
     vector-effect: non-scaling-stroke;
@@ -649,7 +662,7 @@ body.resizing-sidebar {
 .map.visual-bubbles .ccaa-fill {
     fill: rgba(255, 255, 255, 0.42);
     fill-opacity: 0.45;
-    stroke: rgba(88, 99, 106, 0.18);
+    stroke: rgba(51, 42, 30, 0.18);
     pointer-events: none;
 }
 .map.visual-relief .municipio,
@@ -657,7 +670,7 @@ body.resizing-sidebar {
 .map.visual-relief .ccaa-fill {
     fill: rgba(255, 255, 255, 0.06);
     fill-opacity: 0.08;
-    stroke: rgba(88, 99, 106, 0.05);
+    stroke: rgba(51, 42, 30, 0.05);
     pointer-events: none;
 }
 .map.visual-relief .layer-municipios,
@@ -702,11 +715,11 @@ body.resizing-sidebar {
     stroke-width: 0.22;
 }
 .map.climate-mode .provincia-line {
-    stroke: rgba(43, 58, 66, 0.48);
+    stroke: rgba(51, 42, 30, 0.48);
     stroke-width: 0.95;
 }
 .map.climate-mode .ccaa-line {
-    stroke: rgba(35, 45, 52, 0.68);
+    stroke: rgba(51, 42, 30, 0.68);
     stroke-width: 1.2;
 }
 .map .provincia-line {
@@ -748,14 +761,14 @@ body.resizing-sidebar {
 }
 .map .inset-frame {
     fill: rgba(255, 255, 255, 0.28);
-    stroke: rgba(75, 92, 105, 0.55);
+    stroke: rgba(51, 42, 30, 0.45);
     stroke-width: 0.8;
     stroke-dasharray: 3 3;
     pointer-events: none;
     vector-effect: non-scaling-stroke;
 }
 .map .inset-label {
-    fill: rgba(55, 70, 82, 0.78);
+    fill: rgba(51, 42, 30, 0.78);
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -770,24 +783,24 @@ body.resizing-sidebar {
     cursor: help;
 }
 .map .ov-roman {
-    stroke: #8f3b1f;
+    stroke: var(--accent-strong);
     stroke-width: 3.1;
     stroke-dasharray: 4 3;
     opacity: 1;
 }
 .map .ov-rail-iberian {
-    stroke: #22384a;
+    stroke: var(--ink);
     stroke-width: 2.7;
     opacity: 1;
 }
 .map .ov-rail-narrow {
-    stroke: #4f8b99;
+    stroke: var(--teal);
     stroke-width: 2.35;
     stroke-dasharray: 3 2;
     opacity: 1;
 }
 .map .ov-rail-hsr {
-    stroke: #7c5c9c;
+    stroke: #c4562b;
     stroke-width: 3.2;
     opacity: 1;
 }
@@ -1615,18 +1628,19 @@ body.show-data .data-view {
 .trend-chart .climate-bar {
     shape-rendering: crispEdges;
 }
+/* Climograma: lluvia en teal de agua, temperatura en sanguina (portada V7). */
 .trend-chart .climogram-prec-avg {
-    fill: #1d91c0;
+    fill: var(--teal-soft);
     opacity: 0.18;
 }
 .trend-chart .climogram-prec-current {
-    fill: #1d91c0;
+    fill: var(--teal-soft);
     opacity: 0.74;
 }
 .trend-chart .climogram-temp-avg,
 .trend-chart .climogram-temp-current {
     fill: none;
-    stroke: #c44e10;
+    stroke: var(--accent);
 }
 .trend-chart .climogram-temp-avg {
     stroke-width: 1.4;
@@ -1637,8 +1651,8 @@ body.show-data .data-view {
     stroke-width: 2.2;
 }
 .trend-chart .climogram-temp-dot {
-    fill: #c44e10;
-    stroke: #fff;
+    fill: var(--accent);
+    stroke: var(--bg);
     stroke-width: 1;
 }
 .trend-chart .climogram-axis-title {
@@ -1646,11 +1660,11 @@ body.show-data .data-view {
     font-weight: 800;
 }
 .trend-chart .climogram-prec-title {
-    fill: #1d91c0;
+    fill: var(--teal-soft);
 }
 .trend-chart .climogram-temp-title,
 .trend-chart .temp-axis-label {
-    fill: #c44e10;
+    fill: var(--accent);
 }
 .trend-note {
     border: 1px dashed var(--rule);
@@ -1991,7 +2005,7 @@ body.show-about .about-view {
     .nav-btn { padding: 8px 9px; font-size: 10px; }
 }
 @media (max-width: 880px) {
-    .topbar { padding: 0 46px 0 12px; gap: 10px; }
+    .topbar { padding: 0 72px 0 12px; gap: 10px; } /* el boton «i» mide 44 px a 20 px del borde: las pestanas no pasan por debajo */
     .topbar-left { min-width: auto; }
     .topbar-nav {
         position: absolute;

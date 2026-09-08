@@ -30,7 +30,13 @@ para web. **NO se procesan datos crudos aquí.**
 
 ## Estructura
 ```
-index.html              ← Entrada (carga progresiva con barra)
+index.html              ← Portada V7 «palimpsesto» (Canvas 2D, sin fetch; CTA → visor.html)
+visor.html              ← La app (carga progresiva con barra)
+portada/                ← Kits de la portada (solo lectura, generados desde data/)
+├── spain.js                    ← contorno y provincias
+├── spain-muni.js               ← kit V5: rutas (calzadas, ferrocarriles con año)
+├── spain-muni-v6*.js           ← kit V6: centroides, nombres, series de población
+└── spain-muni-v7.js            ← kit V7: altitud, cultivos 1900/2020, embalses por década
 css/styles.css          ← UI estilo Opportunity Atlas
 js/app.js               ← Controlador principal (D3 v7 + topojson-client)
 data/                   ← Datos pre-generados (~5 MB total)
@@ -46,6 +52,8 @@ build/                  ← Scripts Python (NO desplegar)
 ├── convert_geo.py          ← Visvalingam-Whyatt + TopoJSON
 ├── convert_calzadas.py
 ├── convert_ferrocarril.py
+├── portada_kit_v6.py       ← kit V6 de la portada (centroides + series exactas)
+├── portada_kit_v7.py       ← kit V7 de la portada (altitud, cultivos, embalses)
 └── test_render.py          ← test headless con playwright
 ```
 
@@ -57,10 +65,40 @@ build/                  ← Scripts Python (NO desplegar)
 - Datos pre-generados con Python (geopandas, pandas)
 
 ## Paleta y cromo (2026-09; escalas de mapa rehechas el 2026-09-06)
-El cromo del visor sigue la **portada aprobada** del propio visor:
-`07_temp/portadas_visores_2026-09/spain_municipal/V1_espana-que-se-vacia.html`
+**Regla (portadas V7, 2026-09-08): la paleta del interior es la de la
+portada.** Los tokens de `:root` de `index.html` (papel `#F1E9D7`, cal
+`#FBF6E9`, tinta `#332A1E`, sanguina `#B4482A`/`#7C2C15`, teal de agua
+`#114855`) son los de `css/styles.css`; al pulsar «Entrar al visor» no se
+cambia de mundo. La portada vigente es la V7 «palimpsesto» (`index.html`,
+kits `portada/spain-muni-v6*.js`, `spain-muni-v7.js` y `spain-muni.js`,
+generados con `build/portada_kit_v6.py` y `build/portada_kit_v7.py`), heredera
+de la V1/V5 aprobada
+(`07_temp/portadas_visores_2026-09/spain_municipal/V1_espana-que-se-vacia.html`)
 — papel crema con grano, pigmento sepia y sanguina, titulares en EB Garamond.
 (Antes seguía por error la portada de *Andalucía*; ya no.)
+
+Lo que se llevó al interior el 2026-09-08 (backups `*.20260908-v7.bak` en
+`C:/Work/scratch/checkpoint/visores_2026-09/web_spain_municipal_backup/`):
+- `--bg-map` pasa de gris-azul `#e9eff0` a gris de papel `#eceae8` (ver abajo).
+- Tokens nuevos `--teal #114855`, `--teal-soft #2f6570`, `--teal-wash`.
+- Redes de transporte en las cuatro tintas de la portada: calzadas =
+  `--accent-strong` a trazos, vía ibérica = `--ink`, vía estrecha = `--teal`
+  a trazos, AVE = minio `#c4562b` (antes `#8f3b1f / #22384a / #4f8b99 /
+  #7c5c9c`). Pares ≥ 18,6 dE (≥ 10,9 en protanopia, y se separan por el
+  trazo); el más claro da 3,69:1 sobre la tierra base.
+- Hidrología: `Reservoir_*`, `Usable_reservoir_*` y `Vol_*` pintan con
+  `SEQ_COOL` (crema → teal), como las distancias a ríos, la lluvia y las
+  heladas: son agua (`isWaterLayer()` en `js/app.js`). Misma rampa de 7
+  clases, mismas medidas.
+- `LINE_COLORS`: los dos azules ajenos (`#1d3b79`, `#4491e0`) son ahora teal
+  `#114855` y verde de agua `#3f6f5c`. Remedido: mínimo mutuo 12,0 dE
+  (8,7 en deuteranopia y protanopia; antes 15,1 / 14,1 / 15,0), todos
+  ≥ 3,05:1 sobre `--bg`.
+- Climograma: lluvia en `--teal-soft`, temperatura en `--accent` (antes
+  `#1d91c0` / `#c44e10`). Filetes fríos del mapa (`rgba(43,58,66…)`,
+  `rgba(35,45,52…)`, `rgba(75,92,105…)`, `rgba(88,99,106…)`) en tinta.
+- Móvil: `.topbar` con 72 px de reserva a la derecha, que las pestañas de
+  categoría pasaban por debajo del botón «i».
 
 **Regla de oro del color: hay dos paletas y no se mezclan.**
 1. *Cromo* (marco: fondos, paneles, reglas, texto, acento, botones, pestañas,
@@ -202,7 +240,9 @@ Tokens (`css/styles.css`, `:root`), con su origen en la portada:
 |---|---|---|
 | `--bg` | `#fbf6e9` | `--cal` (paneles, tooltips, barras) |
 | `--bg-alt` | `#f1e9d7` | `--papel` (fondo de página, hover, paneles hundidos) |
-| `--bg-map` | `#e9eff0` | **frío a propósito**, ver abajo |
+| `--bg-map` | `#eceae8` | gris de papel (2026-09-08; antes `#e9eff0` frío), ver abajo |
+| `--teal` | `#114855` | `--teal` (agua: embalses, ríos, lluvia; extremo de `SEQ_COOL`) |
+| `--teal-soft` | `#2f6570` | teal asentado para trazos y texto (6,05:1) |
 | `--ink` | `#332a1e` | `--tinta` |
 | `--ink-soft` | `#584735` | `--tinta2` |
 | `--ink-mute` | `#75664f` | `--muted` asentado (el original da 3,8:1) |
@@ -215,17 +255,18 @@ Tokens (`css/styles.css`, `:root`), con su origen en la portada:
 | `--font-serif` | `'EB Garamond', 'Source Serif Pro', Garamond, Georgia, …` | titulares |
 | `--font-sans` | `'Alegreya Sans', 'Inter', system-ui, …` | interfaz |
 
-- **`--bg-map` se queda gris-ceniza, no crema.** La decisión aguanta; el
-  número con que estaba escrita, no. Decía que sobre lienzo crema el quintil
-  bajo daría «1,04:1»; remedido el 6-9-2026, ese 1,04:1 es el contraste WCAG
-  contra el lienzo **gris que ya tiene** (sobre crema `--bg` da 1,12:1, o sea
-  algo mejor). Y además WCAG es la vara equivocada: mide legibilidad de texto,
-  no dos rellenos contiguos. Con la vara buena (dE2000) la decisión se sostiene
-  y con margen: la clase más clara de la rampa contra el lienzo da **14,18 dE**
-  sobre `#e9eff0`, **7,75** sobre `--bg #fbf6e9` y **5,22** sobre
-  `--bg-alt #f1e9d7`. El lienzo frío casi triplica la separación del primer
-  escalón: se queda. Es la única concesión del marco.
-  (Con la rampa anterior las cifras eran 15,83 / 9,14 / 6,70: misma conclusión.)
+- **`--bg-map` es gris de papel (`#eceae8`), no crema y ya no gris-azul.**
+  El 6-9-2026 se dejó frío (`#e9eff0`) porque separaba mejor el primer escalón
+  de las rampas: la clase más clara daba **14,18 dE** sobre él, **7,75** sobre
+  `--bg #fbf6e9` y **5,22** sobre `--bg-alt #f1e9d7` (WCAG no vale para dos
+  rellenos contiguos; la vara es dE2000). El 8-9-2026, con la regla «la paleta
+  del interior es la de la portada», se buscó por barrido el gris más cercano
+  al papel que siguiera separando **todo**: las 21 clases de las tres rampas,
+  «cero», «sin dato» y la tierra base, en visión normal, deuteranopia y
+  protanopia. `#eceae8` da un mínimo de **6,07 dE** (el gris frío daba 7,73;
+  el papel `--bg-alt`, 0 con la tierra base y 2,9 con «cero»: descartado). Es
+  la concesión que queda: gris, pero de papel. Si se toca, remedir con
+  `C:/Work/scratch/checkpoint/visores_2026-09/paletas/web_spain_municipal/colorlab.py`.
 - **Fuentes**: EB Garamond y Alegreya Sans encabezan la pila pero **no se
   descargan** (no se añade ninguna petición nueva). Si no están instaladas,
   los titulares caen en Georgia y la interfaz en la sans del sistema. De la
@@ -324,7 +365,7 @@ no encajan en el alcance estrictamente municipal de este visor.
 ## Test local
 ```bash
 python -m http.server 8765
-# luego abrir http://localhost:8765/index.html
+# luego abrir http://localhost:8765/index.html (portada) o visor.html (app)
 ```
 
 ## Test headless
