@@ -12,15 +12,15 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..600&family=Alegreya+Sans:wght@400;500;700&display=swap">
 <style>
 :root{
-  /* papel de mapa antiguo del IGN: crema, sanguina, ceniza, sombra tostada */
+  /* papel de mapa antiguo del IGN: crema, sanguina, ceniza, sombra tostada (css/styles.css del visor) */
   --papel:#F1E9D7; --cal:#FBF6E9;
-  --tinta:#332A1E; --tinta2:#584735; --muted:#8B7A62;
+  --tinta:#332A1E; --tinta2:#584735; --muted:#75664F;
   --hair:rgba(51,42,30,.22); --hair2:rgba(51,42,30,.44);
   --sanguina:#B4482A; --sanguina-hi:#D9743F; --sanguina-osc:#7C2C15;
-  --ceniza:#7E8A8E; --ceniza-osc:#4E5C62;
+  --ceniza:#7E8A8E; --ceniza-osc:#4E5C62; --teal:#114855;
   --sombra:#6B5233;
   --display:"EB Garamond","Garamond",Georgia,"Times New Roman",serif;
-  --sans:"Alegreya Sans","Gill Sans MT","Trebuchet MS",system-ui,-apple-system,Segoe UI,sans-serif;
+  --sans:"Alegreya Sans","Trebuchet MS",system-ui,-apple-system,Segoe UI,sans-serif;
   --padx:clamp(20px,3.1vw,48px);
 }
 *{box-sizing:border-box;border-radius:0}
@@ -30,33 +30,41 @@ body{margin:0;background:var(--papel);color:var(--tinta);font-family:var(--sans)
 
 .page{height:100vh;height:100dvh;display:grid;
       grid-template-columns:clamp(312px,27.5vw,404px) 1fr;grid-template-rows:1fr}
-.col{grid-column:1;display:grid;grid-template-rows:auto auto auto;align-content:center;
-     row-gap:clamp(16px,2.9vh,34px);
+.col{grid-column:1;display:grid;grid-template-rows:auto auto;align-content:center;
+     row-gap:clamp(14px,2.4vh,28px);
      padding:clamp(18px,3.4vh,38px) clamp(14px,1.7vw,28px) clamp(15px,2.8vh,32px) var(--padx);
      position:relative;z-index:3;min-height:0;overflow:hidden}
-.stage{grid-column:2;position:relative;min-height:0;overflow:hidden;border-left:1px solid var(--hair)}
-.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 
-.eyebrow{margin:0;font-size:11px;letter-spacing:.17em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.eyebrow{margin:0;font-size:12px;letter-spacing:.17em;text-transform:uppercase;color:var(--muted);font-weight:500}
 .eyebrow i{font-style:normal;color:var(--sanguina)}
 h1{font-family:var(--display);font-weight:500;
-   font-size:clamp(36px,3.75vw,53px);line-height:.96;letter-spacing:-.012em;margin:.2em 0 0;color:var(--tinta)}
+   font-size:clamp(34px,3.6vw,51px);line-height:.96;letter-spacing:-.012em;margin:.2em 0 0;color:var(--tinta)}
 h1 em{display:block;font-style:italic;font-weight:400;color:var(--sombra);
       font-size:.66em;line-height:1.06;margin-top:.1em;white-space:nowrap}
 h1 .de{font-size:.72em;color:var(--muted);font-style:normal}
-.lede{margin:.9em 0 0;color:var(--tinta2);font-size:clamp(14.5px,1.16vw,17px);line-height:1.58;text-wrap:pretty}
+.lede{margin:.9em 0 0;color:var(--tinta2);font-size:clamp(14px,1.1vw,16.5px);line-height:1.55;text-wrap:pretty}
 .lede .q{color:var(--muted)}
-.rule{height:1px;background:var(--hair);width:100%}
 
-.indexlabel{margin:0 0 7px;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:500}
-.idx{display:block;border-top:1px solid var(--hair2)}
-.idx a{display:grid;grid-template-columns:17px auto minmax(16px,1fr) auto 13px;align-items:center;gap:12px;
-       min-height:clamp(44px,5.9vh,54px);padding:8px 0;color:var(--tinta);text-decoration:none;
+/* la acción principal: un botón de sanguina que se ve desde el primer segundo */
+.cta{display:flex;align-items:center;justify-content:space-between;gap:12px;
+     min-height:56px;padding:10px 18px;background:var(--sanguina);color:var(--cal);text-decoration:none;
+     font-family:var(--display);font-weight:600;font-size:clamp(19px,1.45vw,23px);letter-spacing:-.005em;
+     box-shadow:0 1px 0 var(--sanguina-osc);transition:background .16s,transform .16s}
+.cta small{font-family:var(--sans);font-weight:500;font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.86;display:block;margin-top:2px}
+.cta i{font-style:normal;font-size:24px;line-height:1;transition:transform .16s}
+.cta:hover,.cta:focus-visible{background:var(--sanguina-osc);outline:none}
+.cta:hover i,.cta:focus-visible i{transform:translateX(4px)}
+.cta:focus-visible{outline:2px solid var(--tinta);outline-offset:3px}
+
+.indexlabel{margin:18px 0 6px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.idx{display:block;border-top:2px solid var(--tinta)}
+.idx a{display:grid;grid-template-columns:17px auto minmax(12px,1fr) auto 13px;align-items:center;gap:10px;
+       min-height:clamp(42px,5.2vh,50px);padding:6px 0;color:var(--tinta);text-decoration:none;
        border-bottom:1px solid var(--hair);transition:color .16s,padding-left .16s}
 .idx a svg{width:17px;height:17px;stroke:var(--sanguina);fill:none;stroke-width:1.5;
            stroke-linecap:round;stroke-linejoin:round;align-self:center}
-.idx a b{font-weight:500;font-size:clamp(14px,1.03vw,15.6px);letter-spacing:.002em;line-height:1.2}
-.idx a s{text-decoration:none;font-weight:400;font-size:clamp(11px,.79vw,12.2px);color:var(--muted);
+.idx a b{font-weight:500;font-size:clamp(14px,1.0vw,15.4px);letter-spacing:.002em;line-height:1.2}
+.idx a s{text-decoration:none;font-weight:400;font-size:12px;color:var(--muted);
          line-height:1.2;text-align:right;align-self:center;white-space:nowrap}
 .idx a u{display:block;height:0;align-self:center;text-decoration:none;border-bottom:1px dotted var(--hair2);opacity:.8}
 .idx a i{font-style:normal;color:var(--hair2);font-size:13px;line-height:1;align-self:center;transition:color .16s,transform .16s}
@@ -64,13 +72,6 @@ h1 .de{font-size:.72em;color:var(--muted);font-style:normal}
 .idx a:hover i,.idx a:focus-visible i{color:var(--sanguina-osc);transform:translateX(2px)}
 .idx a:focus-visible{outline:2px solid var(--sanguina);outline-offset:2px}
 .idx a:hover svg,.idx a:focus-visible svg{stroke:var(--sanguina-osc)}
-/* la acción principal pesa más: tipo mayor, filete grueso, flecha llena */
-.idx a.go{min-height:clamp(52px,7vh,64px);border-bottom:1px solid var(--hair2)}
-.idx a.go b{font-family:var(--display);font-weight:600;font-size:clamp(19px,1.44vw,22px);letter-spacing:-.01em}
-.idx a.go svg{width:20px;height:20px;stroke-width:1.6}
-.idx a.go i{color:var(--sanguina);font-size:15px}
-.idx a.go s{color:var(--sombra)}
-.idx{border-top:2px solid var(--tinta)}
 
 .enter{opacity:0;transform:translateY(5px);transition:opacity .34s ease,transform .42s cubic-bezier(.2,.7,.2,1)}
 body.on .enter{opacity:1;transform:none}
@@ -78,54 +79,131 @@ body.on .enter.d1{transition-delay:.05s}
 body.on .enter.d2{transition-delay:.10s}
 body.on .enter.d3{transition-delay:.15s}
 
+/* ---------- el escenario: mapa + serie + barra de tiempo ---------- */
+.stage{--chart-h:clamp(126px,19vh,178px);grid-column:2;position:relative;min-height:0;display:flex;flex-direction:column;border-left:1px solid var(--hair);background:var(--papel)}
+.scene{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;position:relative}
+.mapbox{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;touch-action:none;cursor:crosshair}
+.mapbox canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.maplabel{position:absolute;left:14px;top:12px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+          font-weight:500;pointer-events:none;background:rgba(251,246,233,.72);padding:3px 6px 2px}
+.maplabel b{color:var(--tinta);font-weight:700}
+.chartbox{position:relative;flex:0 0 auto;height:var(--chart-h);border-top:1px solid var(--hair);background:var(--cal);touch-action:none;cursor:col-resize}
+.chartbox canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.chartlabel{position:absolute;left:14px;top:8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500;pointer-events:none;max-width:calc(100% - 28px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chartlabel b{color:var(--sanguina-osc);font-weight:700}
+.chartlabel em{color:var(--teal);font-style:normal;font-weight:700}
+
+/* leyenda compacta, siempre visible, en el rincón atlántico del mapa */
+.key{position:absolute;left:14px;bottom:calc(var(--chart-h) + 12px);max-width:min(238px,44%);font-size:12px;line-height:1.3;color:var(--tinta2);
+     background:rgba(251,246,233,.84);border:1px solid rgba(107,82,51,.35);padding:8px 10px 7px;pointer-events:none}
+.key .kcount{font-family:var(--display);font-size:15px;line-height:1.15;color:var(--tinta);margin-bottom:6px}
+.key .kcount b{font-weight:700;font-size:22px;color:var(--teal);letter-spacing:-.01em}
+.key .kcount b.g{color:var(--sanguina)}
+.key .ramp{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;width:100%;max-width:216px;margin:2px 0 1px}
+.key .ramp i{display:block;height:11px;border:1.5px solid transparent}
+.key .ticks{display:grid;grid-template-columns:repeat(9,1fr);max-width:216px;font-size:12px;color:var(--muted);letter-spacing:0;text-align:center;line-height:1.1}
+.key .ticks span{grid-column:span 1}
+.key .ticks .l{text-align:left;grid-column:1/3}.key .ticks .m{grid-column:5/6}.key .ticks .r{text-align:right;grid-column:8/10}
+.key .sizes{display:flex;align-items:center;gap:5px;margin-top:5px;color:var(--muted)}
+.key .sizes i{display:inline-block;border-radius:50%;background:var(--sombra);opacity:.8;vertical-align:middle}
+.key .knote{margin-top:5px;color:var(--muted);font-size:12px;line-height:1.25}
+
+/* tooltip */
+.tip{position:absolute;z-index:5;pointer-events:none;background:var(--cal);border:1px solid rgba(107,82,51,.7);
+     padding:7px 10px 8px;min-width:170px;max-width:250px;font-size:13px;line-height:1.3;color:var(--tinta);box-shadow:0 2px 8px rgba(51,42,30,.14)}
+.tip b{display:block;font-family:var(--display);font-size:17px;font-weight:600;line-height:1.05;margin-bottom:1px}
+.tip .prov{display:block;color:var(--muted);font-size:12px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
+.tip .v{display:block}
+.tip .v i{font-style:normal;color:var(--muted)}
+.tip .d{display:block;margin-top:2px;font-weight:700}
+.tip .d.loss{color:var(--teal)}.tip .d.gain{color:var(--sanguina)}
+.tip a{display:inline-block;margin-top:5px;color:var(--sanguina-osc);font-weight:500;pointer-events:auto;text-decoration:none;border-bottom:1px solid var(--hair2)}
+.tip.pinned{border-color:var(--tinta)}
+
+/* barra de tiempo */
+.tbar{flex:0 0 auto;display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:14px;
+      padding:8px 16px 8px 12px;border-top:1px solid var(--hair2);background:var(--papel);min-height:66px}
+.tbar button{width:48px;height:48px;border:1.5px solid var(--tinta);background:var(--cal);color:var(--tinta);cursor:pointer;
+             display:flex;align-items:center;justify-content:center;padding:0;transition:background .16s}
+.tbar button:hover,.tbar button:focus-visible{background:var(--sanguina);color:var(--cal);border-color:var(--sanguina-osc);outline:none}
+.tbar button svg{width:20px;height:20px;fill:currentColor}
+.tbar button .pause{display:none}
+.tbar button[aria-pressed="true"] .pause{display:block}
+.tbar button[aria-pressed="true"] .play{display:none}
+.slider{position:relative;height:52px;display:flex;align-items:flex-start;padding-top:2px}
+.slider input{-webkit-appearance:none;appearance:none;width:100%;height:36px;margin:0;background:transparent;cursor:pointer}
+.slider input::-webkit-slider-runnable-track{height:2px;background:var(--hair2)}
+.slider input::-moz-range-track{height:2px;background:var(--hair2)}
+.slider input::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:-10px;background:var(--sanguina);border:2px solid var(--cal);box-shadow:0 0 0 1px var(--sanguina-osc)}
+.slider input::-moz-range-thumb{width:18px;height:18px;background:var(--sanguina);border:2px solid var(--cal);box-shadow:0 0 0 1px var(--sanguina-osc);border-radius:0}
+.slider input:focus-visible{outline:2px solid var(--sanguina);outline-offset:-2px}
+.slider .marks{position:absolute;left:11px;right:11px;bottom:0;display:flex;justify-content:space-between;font-size:12px;color:var(--muted);pointer-events:none;letter-spacing:.02em}
+.year{font-family:var(--display);font-weight:600;font-size:clamp(34px,3.2vw,44px);line-height:1;color:var(--tinta);min-width:3.1ch;text-align:right;
+      font-variant-numeric:tabular-nums lining-nums;letter-spacing:-.01em}
+.year small{display:block;font-family:var(--sans);font-weight:500;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right;margin-top:3px}
+
 @media (max-width:919px) and (orientation:portrait){
-  .page{grid-template-columns:1fr;grid-template-rows:auto minmax(190px,1fr) auto}
+  body{overflow:auto}
+  .page{height:auto;min-height:100dvh;grid-template-columns:1fr;grid-template-rows:auto auto auto}
   .col{display:contents}
-  .rule{display:none}
-  .stage{grid-column:1;grid-row:2;border-left:0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);margin:9px 0}
-  .head{grid-column:1;grid-row:1;padding:calc(13px + env(safe-area-inset-top,0px)) var(--padx) 0}
-  .nav{grid-column:1;grid-row:3;padding:0 var(--padx) calc(11px + env(safe-area-inset-bottom,0px))}
-  h1{font-size:clamp(31px,8.6vw,42px)}
+  .head{grid-column:1;grid-row:1;padding:calc(12px + env(safe-area-inset-top,0px)) var(--padx) 10px}
+  .stage{grid-column:1;grid-row:2;border-left:0;border-top:1px solid var(--hair)}
+  .scene{min-height:52vh;min-height:52dvh}
+  .stage{--chart-h:118px}
+  .mapbox{flex:1 1 auto;min-height:240px}
+  .key{position:static;max-width:none;border-left:0;border-right:0;border-bottom:0;padding:6px var(--padx) 6px;background:var(--cal);font-size:12px}
+  .key .kcount{font-size:13.5px;margin-bottom:4px}.key .kcount b{font-size:18px}
+  .key .knote{display:none}
+  .key .ramp,.key .ticks{max-width:190px}
+  .key .body{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:center}
+  .key .sizes{margin-top:0}
+  .nav{grid-column:1;grid-row:3;padding:14px var(--padx) calc(84px + env(safe-area-inset-bottom,0px))}
+  .cta{position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:20;min-height:54px;box-shadow:0 6px 18px rgba(51,42,30,.28)}
+  .indexlabel{margin-top:0}
+  h1{font-size:clamp(30px,8.4vw,42px)}
   h1 em{font-size:.72em}
-  .lede{font-size:13.6px;line-height:1.42;margin-top:.6em}
+  .lede{font-size:13.5px;line-height:1.42;margin-top:.55em}
   .lede .q{display:none}
-  .indexlabel{display:none}
   .idx a{min-height:44px;padding:4px 0;grid-template-columns:17px 1fr 13px}
   .idx a b{font-size:14px}
   .idx a s,.idx a u{display:none}
-  .idx a.go{min-height:50px}
-  .idx a.go b{font-size:17.5px}
+  .tbar{grid-template-columns:44px 1fr auto;gap:10px;padding:6px 12px;min-height:60px}
+  .tbar button{width:44px;height:44px}
+  .year{font-size:32px}
+  .maplabel{left:8px;top:8px;font-size:12px}
+  .tip{max-width:220px;font-size:12.5px}
 }
 @media (max-height:560px) and (orientation:landscape){
   .col{padding-top:12px;padding-bottom:12px}
   h1{font-size:clamp(26px,7.2vh,38px)}
   .lede{font-size:12.4px;line-height:1.4}
   .indexlabel{display:none}
-  .idx a{min-height:34px;padding:3px 0;grid-template-columns:17px 1fr 13px}
+  .cta{min-height:44px;font-size:17px}
+  .idx a{min-height:32px;padding:2px 0;grid-template-columns:17px 1fr 13px}
   .idx a s,.idx a u{display:none}
-  .idx a.go{min-height:40px}
-  .idx a.go b{font-size:16px}
+  .stage{--chart-h:96px}
+  .tbar{min-height:56px;padding:4px 12px}
+  .year{font-size:28px}
 }
-@media (prefers-reduced-motion:reduce){ .enter{transition:none;opacity:1;transform:none} .idx a{transition:none} }
+@media (prefers-reduced-motion:reduce){ .enter{transition:none;opacity:1;transform:none} .idx a,.cta,.tbar button{transition:none} }
 </style>
 </head>
 <body>
 <main class="page">
   <div class="col">
     <header class="head">
-      <p class="eyebrow enter">Del censo de 1900 <i>·</i> al padrón de hoy</p>
+      <p class="eyebrow enter">Del censo de 1900 <i>·</i> al padrón de 2025</p>
       <h1 class="enter">Atlas Histórico<em>Municipal <span class="de">de</span> España</em></h1>
-      <p class="lede enter d2">Un atlas de los municipios españoles con sus series largas: cuánta gente vive en cada término desde 1900, qué clima y qué suelo tiene, y por dónde le pasan los caminos.<span class="q"> Está pensado para clase: se ve el país entero, se baja a un solo pueblo sin cambiar de mapa, y cada vista se comparte con un enlace o se descarga en una tabla. Sigue creciendo: se le van sumando fuentes, indicadores y correcciones.</span></p>
+      <p class="lede enter d2">Un atlas de los municipios españoles con sus series largas: cuánta gente vive en cada término desde 1900, qué clima y qué suelo tiene, y por dónde le pasan los caminos.<span class="q"> Está pensado para clase: se ve el país entero, se baja a un solo pueblo sin cambiar de mapa, y cada vista se comparte con un enlace o se descarga en una tabla.</span></p>
     </header>
 
-    <div class="rule enter d2" aria-hidden="true"></div>
-
     <nav class="nav enter d3" aria-label="Entrar al atlas">
-      <p class="indexlabel">Entrar al atlas</p>
+      <a class="cta" id="cta" href="visor.html#cat=poblacion&amp;ind=cambio&amp;year=2025&amp;tab=map"><span>Entrar al visor<small>8.124 municipios · 1900–2025</small></span><i aria-hidden="true">&#8594;</i></a>
+      <p class="indexlabel">Secciones del atlas</p>
       <div class="idx">
-        <a class="go" href="visor.html#cat=poblacion&amp;ind=pob&amp;year=2025&amp;tab=map">
+        <a href="visor.html#cat=poblacion&amp;ind=pob&amp;year=2025&amp;tab=map">
           <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="1 6 8 3 16 6 23 3 23 18 16 21 8 18 1 21 1 6"/><line x1="8" y1="3" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="21"/></svg>
-          <b>Mapa municipal</b><u aria-hidden="true"></u><s>8.124 términos</s><i aria-hidden="true">&#8594;</i></a>
+          <b>Mapa municipal</b><u aria-hidden="true"></u><s>Población por término</s><i aria-hidden="true">&#8594;</i></a>
         <a href="visor.html#cat=poblacion&amp;ind=cambio&amp;year=2025&amp;tab=map">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l7 8 4-4 7 8"/><path d="M21 13v5h-5"/></svg>
           <b>La España que se vacía</b><u aria-hidden="true"></u><s>Cambio desde 1900</s><i aria-hidden="true">&#8594;</i></a>
@@ -137,78 +215,143 @@ body.on .enter.d3{transition-delay:.15s}
           <b>Usos del suelo</b><u aria-hidden="true"></u><s>Cultivos, pastos, bosque</s><i aria-hidden="true">&#8594;</i></a>
         <a href="visor.html#cat=transporte&amp;tab=map">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20c3-6 5-3 8-9s4-3 8-9"/><circle cx="4" cy="20" r="1.4"/><circle cx="20" cy="2" r="1.4"/><path d="M9 13.5l4.6 1.6"/></svg>
-          <b>Caminos y ferrocarriles</b><u aria-hidden="true"></u><s>Calzadas, vía ibérica, AVE</s><i aria-hidden="true">&#8594;</i></a>
+          <b>Caminos y ferrocarriles</b><u aria-hidden="true"></u><s>Calzadas y trenes</s><i aria-hidden="true">&#8594;</i></a>
         <a href="visor.html#cat=poblacion&amp;ind=pob&amp;year=2025&amp;tab=trends&amp;sel=03076,22225,19170">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20V4"/><path d="M3 20h18"/><path d="M7 16l4-6 4 3 6-8"/></svg>
-          <b>Comparar municipios</b><u aria-hidden="true"></u><s>Tendencias y ranking</s><i aria-hidden="true">&#8594;</i></a>
+          <b>Comparar municipios</b><u aria-hidden="true"></u><s>Series 1900–2025</s><i aria-hidden="true">&#8594;</i></a>
+        <a href="visor.html#cat=poblacion&amp;ind=pob&amp;year=2025&amp;tab=ranking">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h11"/><path d="M4 18h7"/></svg>
+          <b>Ranking y tabla</b><u aria-hidden="true"></u><s>Ordenar y descargar</s><i aria-hidden="true">&#8594;</i></a>
       </div>
     </nav>
   </div>
 
-  <div class="stage" id="stage"><canvas id="c" aria-hidden="true"></canvas></div>
+  <section class="stage" id="stage" aria-label="Población de los municipios de España, 1900–2025">
+    <div class="scene">
+      <div class="mapbox" id="mapbox">
+        <canvas id="map" aria-hidden="true"></canvas>
+        <div class="maplabel">Municipios · habitantes en <b id="mapYear">2025</b> · color respecto a 1900</div>
+        <div class="tip" id="tip" hidden></div>
+      </div>
+      <div class="key" id="key" aria-live="off">
+        <div class="kcount"><b id="kLoss">0</b> municipios con menos gente que en 1900 · <b class="g" id="kGain">0</b> con más</div>
+        <div class="body">
+          <div>
+            <div class="ramp" id="ramp"></div>
+            <div class="ticks"><span class="l">≤ −75 %</span><span class="m">1900</span><span class="r">≥ ×4</span></div>
+          </div>
+          <div class="sizes"><i style="width:4px;height:4px"></i> 100 <i style="width:8px;height:8px"></i> 10.000 <i style="width:13px;height:13px"></i> 1 M hab.</div>
+        </div>
+        <div class="knote">Anillo: menos gente que en 1900; punto de sanguina: más. Entre censos se interpola para dibujar; los datos son los de cada censo (decenales 1900–1991; padrón 2001, 2011, 2021 y 2025).</div>
+      </div>
+      <div class="chartbox" id="chartbox">
+        <canvas id="chart" aria-hidden="true"></canvas>
+        <div class="chartlabel" id="chartLabel">Población de España · habitantes · 1900–2025</div>
+      </div>
+    </div>
+    <div class="tbar">
+      <button id="play" type="button" aria-label="Reproducir" aria-pressed="false" title="Reproducir / pausar (espacio)">
+        <svg class="play" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4l14 8-14 8z"/></svg>
+        <svg class="pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h5v16H5zM14 4h5v16h-5z"/></svg>
+      </button>
+      <div class="slider">
+        <input type="range" id="slider" min="1900" max="2025" step="1" value="1900" aria-label="Año" aria-valuetext="1900">
+        <div class="marks" aria-hidden="true"><span>1900</span><span>1950</span><span>2000</span><span>2025</span></div>
+      </div>
+      <output class="year" id="yearOut" for="slider">1900<small id="yearNote">censo</small></output>
+    </div>
+  </section>
 </main>
 
 <script src="portada/spain.js"></script>
-<script src="portada/spain-muni.js"></script>
+<script src="portada/spain-muni-v6.js"></script>
+<script src="portada/spain-muni-v6-pop1.js"></script>
+<script src="portada/spain-muni-v6-pop2.js"></script>
 <script>
 (function(){
 'use strict';
-var S=window.SPAIN, D=window.SPAIN_MUNI;
-var canvas=document.getElementById('c'), stage=document.getElementById('stage');
+var S=window.SPAIN, D=window.SPAIN_MUNI_V6, PS=(window.SPAIN_MUNI_V6_POP1||'')+(window.SPAIN_MUNI_V6_POP2||'');
+var mapC=document.getElementById('map'), mapbox=document.getElementById('mapbox'),
+    chC=document.getElementById('chart'), chartbox=document.getElementById('chartbox'),
+    tip=document.getElementById('tip'), playBtn=document.getElementById('play'), slider=document.getElementById('slider'),
+    yearOut=document.getElementById('yearOut'), yearNote=document.getElementById('yearNote'), mapYear=document.getElementById('mapYear'),
+    kLoss=document.getElementById('kLoss'), kGain=document.getElementById('kGain'), chartLabel=document.getElementById('chartLabel');
 var RM=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 requestAnimationFrame(function(){document.body.classList.add('on');});
-if(!S||!D||!canvas.getContext) return;
-var ctx=canvas.getContext('2d'), TAU=Math.PI*2;
+if(!S||!D||!PS||!mapC.getContext) return;
+var ctx=mapC.getContext('2d'), cctx=chC.getContext('2d'), TAU=Math.PI*2;
 
-/* ---------- palette: cream plate, sanguine, ash ---------- */
-var PAPEL='#F1E9D7', CAL='#FBF6E9', TINTA='#332A1E', MUTED='#8B7A62', SOMBRA='#6B5233',
-    SANG='#B4482A', SANG_HI='#D9743F', SANG_OSC='#7C2C15',
-    CENIZA='#7E8A8E', CENIZA_OSC='#4E5C62';
+/* ---------- paleta: papel, sanguina (ganan), ceniza/teal (pierden), como el mapa de «cambio» del visor ---------- */
+var PAPEL='#F1E9D7', CAL='#FBF6E9', TINTA='#332A1E', MUTED='#75664F', SOMBRA='#6B5233',
+    SANG='#B4482A', SANG_HI='#D9743F', SANG_OSC='#7C2C15', TEAL='#114855';
+var LOSSCOL=['#114855','#2F6570','#588088','#9AB9BD'];        /* < -75 %, -75..-50, -50..-21, -21..0 */
+var GAINCOL=['#E0A967','#D9743F','#B4482A','#7C2C15'];        /* 0..+26 %, +26..+100, +100..+300, > +300 */
+var NEUTRAL='#B9A88A';
+function rgba(hex,a){var p=parseInt(hex.slice(1),16);return 'rgba('+((p>>16)&255)+','+((p>>8)&255)+','+(p&255)+','+a.toFixed(3)+')';}
 function mix(a,b,t){var pa=parseInt(a.slice(1),16),pb=parseInt(b.slice(1),16);
   var r=Math.round(((pa>>16)&255)+((((pb>>16)&255)-((pa>>16)&255))*t)),
       g2=Math.round(((pa>>8)&255)+((((pb>>8)&255)-((pa>>8)&255))*t)),
       b2=Math.round((pa&255)+(((pb&255)-(pa&255))*t));
   return '#'+(((1<<24)+(r<<16)+(g2<<8)+b2).toString(16).slice(1));}
-function rgba(hex,a){var p=parseInt(hex.slice(1),16);return 'rgba('+((p>>16)&255)+','+((p>>8)&255)+','+(p&255)+','+a.toFixed(3)+')';}
-
-/* ---------- deterministic noise ---------- */
 function hash(n){var s=Math.sin(n*12.9898+78.233)*43758.5453;return s-Math.floor(s);}
 function smooth(t){return t*t*(3-2*t);}
 function noise(x,seed){var i0=Math.floor(x),f=x-i0,a=hash(i0+seed*131.7),b=hash(i0+1+seed*131.7);return (a+(b-a)*smooth(f))*2-1;}
 function fbm(x,seed){return noise(x,seed)*0.62+noise(x*2.31,seed+7)*0.26+noise(x*4.7,seed+19)*0.12;}
 function clamp(x){return x<0?0:x>1?1:x;}
-function lerp(a,b,t){return a+(b-a)*t;}
-function ease(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;}
 function easeOut(t){return 1-Math.pow(1-t,3);}
 
-/* ---------- decode the municipal kit ---------- */
-var B64='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/', LUT={};
-for(var q=0;q<64;q++)LUT[B64.charAt(q)]=q;
-function d1(s,o){return LUT[s.charAt(o)];}
-function d2(s,o){return LUT[s.charAt(o)]*64+LUT[s.charAt(o+1)];}
-var BX=D.box, BW=BX[2]-BX[0], BH=BX[3]-BX[1];
-var MS=D.muni, NM=(MS.length/7)|0;
-var mLon=new Float32Array(NM), mLat=new Float32Array(NM),
-    mChg=new Float32Array(NM), mPop=new Float32Array(NM), mPrv=new Uint8Array(NM);
-for(var i=0;i<NM;i++){
-  var o=i*7;
-  mLon[i]=BX[0]+d2(MS,o)/4095*BW;
-  mLat[i]=BX[1]+d2(MS,o+2)/4095*BH;
-  mChg[i]=(d1(MS,o+4)-32)/16;            /* log10(pob2025 / pob1900) */
-  mPop[i]=d1(MS,o+5)/8;                  /* log10(pob2025) */
-  mPrv[i]=d1(MS,o+6);
-}
-var PROV=D.prov, NP=PROV.length;
-var EMPTIEST=PROV.map(function(p,j){return {j:j,sh:p.nl/p.nm};})
-  .filter(function(o){return PROV[o.j].nm>=100;})
-  .sort(function(a,b){return b.sh-a.sh;}).slice(0,6).map(function(o){return o.j;});
-var provMunis=[];for(i=0;i<NP;i++)provMunis.push([]);
-for(i=0;i<NM;i++)provMunis[mPrv[i]].push(i);
-var META=D.meta;
-var NAC=D.nacional, NACY=D.years, NN=NAC.length;
-var nacMax=0;for(i=0;i<NN;i++)if(NAC[i]>nacMax)nacMax=NAC[i];
+/* leyenda: la rampa de nueve clases */
+(function(){var r=document.getElementById('ramp'),h='';
+  for(var j=0;j<4;j++)h+='<i style="border-color:'+LOSSCOL[j]+';background:'+CAL+'"></i>';
+  h+='<i style="background:'+NEUTRAL+'"></i>';
+  for(j=0;j<4;j++)h+='<i style="background:'+GAINCOL[j]+'"></i>';
+  r.innerHTML=h;})();
 
-/* ---------- projection: Lambert conformal conic, as in the atlas kit ---------- */
+/* ---------- decodificar el kit ---------- */
+var B64='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/', LUT=new Int16Array(128);
+for(var q=0;q<64;q++)LUT[B64.charCodeAt(q)]=q;
+var NM=D.n, YRS=D.years, K=YRS.length, Y0=YRS[0], Y1=YRS[K-1];
+var BX=D.box, BW=BX[2]-BX[0], BH=BX[3]-BX[1];
+var mLon=new Float32Array(NM), mLat=new Float32Array(NM), mPrv=new Uint8Array(NM), mIne=new Int32Array(NM);
+var XY=D.xy, PV=D.pv, IN=D.ine, NAMES=D.names.split('|'), PROVN=D.prov;
+for(var i=0;i<NM;i++){
+  mLon[i]=BX[0]+(LUT[XY.charCodeAt(i*4)]*64+LUT[XY.charCodeAt(i*4+1)])/4095*BW;
+  mLat[i]=BX[1]+(LUT[XY.charCodeAt(i*4+2)]*64+LUT[XY.charCodeAt(i*4+3)])/4095*BH;
+  mPrv[i]=(PV.charCodeAt(i*2)-48)*10+(PV.charCodeAt(i*2+1)-48);
+  mIne[i]=LUT[IN.charCodeAt(i*3)]*4096+LUT[IN.charCodeAt(i*3+1)]*64+LUT[IN.charCodeAt(i*3+2)];
+}
+/* series: 14 enteros exactos por municipio, varint zigzag sobre deltas (build/portada_kit_v6.py) */
+var POP=new Int32Array(NM*K);
+(function(){var p=0,j=0,n=PS.length;
+  while(j<n&&p<NM*K){
+    var prev=0;
+    for(var k=0;k<K;k++){
+      var c0=LUT[PS.charCodeAt(j)],z;
+      if(c0<32){z=c0;j+=1;}
+      else if(c0<52){z=32+(c0-32)*64+LUT[PS.charCodeAt(j+1)];j+=2;}
+      else if(c0<60){z=1312+(c0-52)*4096+LUT[PS.charCodeAt(j+1)]*64+LUT[PS.charCodeAt(j+2)];j+=3;}
+      else if(c0<63){z=34080+(c0-60)*262144+LUT[PS.charCodeAt(j+1)]*4096+LUT[PS.charCodeAt(j+2)]*64+LUT[PS.charCodeAt(j+3)];j+=4;}
+      else{z=820512+LUT[PS.charCodeAt(j+1)]*262144+LUT[PS.charCodeAt(j+2)]*4096+LUT[PS.charCodeAt(j+3)]*64+LUT[PS.charCodeAt(j+4)];j+=5;}
+      prev+=(z&1)?-((z+1)>>1):(z>>1);
+      POP[p++]=prev;
+    }
+  }
+  if(p!==NM*K)console.warn('kit V6: series incompletas',p,NM*K);
+})();
+var NAC=D.nacional, NACY=D.yearsNac, NN=NAC.length, nacMax=0;
+for(i=0;i<NN;i++)if(NAC[i]>nacMax)nacMax=NAC[i];
+var ineIndex={};for(i=0;i<NM;i++)ineIndex[mIne[i]]=i;
+
+/* interpolación entre cortes: solo para dibujar */
+function segOf(y){var s=0;while(s<K-2&&y>=YRS[s+1])s++;return s;}
+function popAt(m,y){if(y<=Y0)return POP[m*K];if(y>=Y1)return POP[m*K+K-1];
+  var s=segOf(y),f=(y-YRS[s])/(YRS[s+1]-YRS[s]),a=POP[m*K+s],b=POP[m*K+s+1];return a+(b-a)*f;}
+function nacAt(y){if(y<=NACY[0])return NAC[0];if(y>=NACY[NN-1])return NAC[NN-1];
+  var s=0;while(s<NN-2&&y>=NACY[s+1])s++;var f=(y-NACY[s])/(NACY[s+1]-NACY[s]);return NAC[s]+(NAC[s+1]-NAC[s])*f;}
+function isCensus(y){for(var k=0;k<K;k++)if(YRS[k]===y)return true;return false;}
+function censusBounds(y){var s=segOf(y);return [YRS[s],YRS[s+1]];}
+
+/* ---------- proyección: cónica conforme de Lambert, como el kit del atlas ---------- */
 var RAD=Math.PI/180,P1=37*RAD,P2=43*RAD,L0=-3*RAD,P0=40*RAD;
 var cn=Math.log(Math.cos(P1)/Math.cos(P2))/Math.log(Math.tan(Math.PI/4+P2/2)/Math.tan(Math.PI/4+P1/2));
 var cF=Math.cos(P1)*Math.pow(Math.tan(Math.PI/4+P1/2),cn)/cn;
@@ -218,7 +361,6 @@ function raw(lon,lat){var r=cF/Math.pow(Math.tan(Math.PI/4+lat*RAD/2),cn),th=cn*
 function cent(r){var x=0,y=0;for(var j=0;j<r.length;j++){x+=r[j][0];y+=r[j][1];}return [x/r.length,y/r.length];}
 function bboxOf(rs){var b=[Infinity,Infinity,-Infinity,-Infinity];
   rs.forEach(function(r){r.forEach(function(p){if(p[0]<b[0])b[0]=p[0];if(p[1]<b[1])b[1]=p[1];if(p[0]>b[2])b[2]=p[0];if(p[1]>b[3])b[3]=p[1];});});return b;}
-
 var mainRings=[],canRings=[],fitRings=[];
 S.outline.forEach(function(r){var c=cent(r);
   if(c[0]<-10)canRings.push(r);else{mainRings.push(r);if(c[1]>35.95)fitRings.push(r);}});
@@ -230,51 +372,11 @@ var provRaw=S.provinces.map(function(p){return {can:p.c[0]<-10,rings:p.rings.map
 var muRaw=new Array(NM);
 for(i=0;i<NM;i++)muRaw[i]=raw(mLon[i],mLat[i]);
 
-/* ---------- sprites: a soft pool of pigment, and an emptied ring ---------- */
-var SP=44;
-function dotSprite(col,seed,wet){
-  var t=document.createElement('canvas');t.width=SP;t.height=SP;
-  var g=t.getContext('2d'),cx=SP/2,cy=SP/2,R=SP/2-1;
-  if(wet){var hg=g.createRadialGradient(cx,cy,R*0.2,cx,cy,R);
-    hg.addColorStop(0,rgba(col,0.30));hg.addColorStop(1,rgba(col,0));g.fillStyle=hg;g.beginPath();g.arc(cx,cy,R,0,TAU);g.fill();}
-  /* an irregular blob, not a circle */
-  g.beginPath();
-  for(var a=0;a<=24;a++){var an=a/24*TAU,rr=R*(wet?0.62:0.66)*(1+0.20*fbm(a*0.9,seed)+0.10*fbm(a*2.3,seed+5));
-    var x=cx+Math.cos(an)*rr,y=cy+Math.sin(an)*rr;if(a===0)g.moveTo(x,y);else g.lineTo(x,y);}
-  g.closePath();
-  var bg=g.createRadialGradient(cx-R*0.14,cy-R*0.14,0,cx,cy,R*0.72);
-  bg.addColorStop(0,rgba(mix(col,'#FFFFFF',0.14),0.98));
-  bg.addColorStop(0.62,rgba(col,0.92));
-  bg.addColorStop(1,rgba(mix(col,'#2A160C',0.35),0.72));
-  g.fillStyle=bg;g.fill();
-  return t;
-}
-function ringSprite(col,seed){
-  var t=document.createElement('canvas');t.width=SP;t.height=SP;
-  var g=t.getContext('2d'),cx=SP/2,cy=SP/2,R=SP/2-1;
-  var pts=[];
-  for(var a=0;a<=26;a++){var an=a/26*TAU,rr=R*0.60*(1+0.17*fbm(a*0.85,seed)+0.08*fbm(a*2.1,seed+11));
-    pts.push([cx+Math.cos(an)*rr,cy+Math.sin(an)*rr]);}
-  g.beginPath();pts.forEach(function(p,j){if(j===0)g.moveTo(p[0],p[1]);else g.lineTo(p[0],p[1]);});g.closePath();
-  g.fillStyle=rgba(CAL,0.88);g.fill();                       /* the term is emptied out */
-  g.strokeStyle=rgba(col,0.92);g.lineWidth=SP*0.075;g.lineJoin='round';g.stroke();
-  g.strokeStyle=rgba(mix(col,'#1E2A2E',0.5),0.34);g.lineWidth=SP*0.032;g.stroke();
-  return t;
-}
-var SOLID=[],EMBER=[],HOLLOW=[];
-for(i=0;i<4;i++){
-  SOLID.push(dotSprite(mix(SOMBRA,'#4A3A24',0.25),i*7.1,false));
-  EMBER.push(dotSprite(mix(SANG,SANG_HI,hash(i*3.3)*0.5),i*5.7,true));
-  HOLLOW.push(ringSprite(mix(CENIZA,CENIZA_OSC,0.30+hash(i*9.1)*0.32),i*4.3));
-}
-
-/* ---------- layout ---------- */
-var W,H,dpr,mobile,pad,k,ox,oy,scale,inset,M2=0;
-var mx=new Float32Array(NM),my=new Float32Array(NM),mr=new Float32Array(NM);
-var mainScr,canScr,provScr,paperPat,paperLayer,solidLayer,splitLayer,lineLayer;
-var madrid,keyAt,sparkAt,provScreen;
-var smallFont,readFont,bigFont;
-
+/* ---------- disposición ---------- */
+var W,H,dpr,mobile,pad,k,ox,oy,scale,inset,CW,CH;
+var mx=new Float32Array(NM),my=new Float32Array(NM),mR=new Float32Array(NM),mPop=new Float32Array(NM);
+var mainScr,canScr,provScr,paperPat,paperLayer,lineLayer,dotLayer,dotCtx,dotYear=-1;
+var grid,gridW,gridH,CELL=18;
 function sx(p){return [ox+(p[0]-fitB[0])*k,oy+(fitB[3]-p[1])*k];}
 function sxc(p){return [inset.x0+(p[0]-canB[0])*inset.k,inset.y0+(canB[3]-p[1])*inset.k];}
 
@@ -291,31 +393,7 @@ function makePaperTile(){
     g.beginPath();g.moveTo(x0,y0);g.lineTo(x0+Math.cos(an)*ln,y0+Math.sin(an)*ln);g.stroke();}
   return t;
 }
-
-function onPlate(j){return mx[j]>2&&mx[j]<W-2&&my[j]>2&&my[j]<H-2;}
-function drawDots(g,mode){
-  /* mode 0: every term still full, in one sepia; mode 1: the split */
-  for(var j=0;j<NM;j++){
-    if(!onPlate(j))continue;
-    var r=mr[j],v=hash(j*1.37)*4|0;
-    if(mode===0){
-      g.globalAlpha=0.62+0.22*hash(j*2.11);
-      var s0=SOLID[v];g.drawImage(s0,mx[j]-r,my[j]-r,r*2,r*2);
-    }else if(mChg[j]<0){
-      var rr=Math.max(2.7*scale,r*1.18);
-      g.globalAlpha=0.62+0.32*clamp(-mChg[j]*1.5);
-      g.drawImage(HOLLOW[v],mx[j]-rr,my[j]-rr,rr*2,rr*2);
-    }else{
-      var re=r*1.30;
-      g.globalAlpha=0.62+0.34*clamp(mChg[j]*1.2);
-      g.drawImage(EMBER[v],mx[j]-re,my[j]-re,re*2,re*2);
-    }
-  }
-  g.globalAlpha=1;
-}
-
 function drawOutline(g){
-  /* a dry pen, wobbled so the border is never vectorial */
   function ring(rg,lw,al,col){
     g.beginPath();
     for(var j=0;j<rg.length;j++){
@@ -325,31 +403,32 @@ function drawOutline(g){
     g.closePath();g.globalAlpha=al;g.strokeStyle=col;g.lineWidth=lw;g.stroke();g.globalAlpha=1;
   }
   g.lineJoin='round';g.lineCap='round';
-  provScr.forEach(function(pr){pr.forEach(function(rg){if(rg.length>2)ring(rg,0.75*scale,0.26,SOMBRA);});});
+  provScr.forEach(function(pr){pr.forEach(function(rg){if(rg.length>2)ring(rg,0.8*scale,0.30,SOMBRA);});});
   mainScr.forEach(function(rg){if(rg.length<3)return;ring(rg,3.0*scale,0.10,SOMBRA);ring(rg,1.25*scale,0.62,mix(TINTA,SOMBRA,0.35));});
   canScr.forEach(function(rg){if(rg.length<3)return;ring(rg,1.1*scale,0.55,mix(TINTA,SOMBRA,0.35));});
+  /* recuadro de Canarias */
+  g.globalAlpha=0.6;g.strokeStyle=SOMBRA;g.lineWidth=1;
+  var bx=inset.x0-9,by=inset.y0-9;
+  g.beginPath();g.moveTo(bx,inset.y1+2);g.lineTo(bx,by);g.lineTo(inset.x1+2,by);g.stroke();
+  g.font='500 12px "Alegreya Sans", system-ui, sans-serif';g.fillStyle=MUTED;g.textAlign='left';g.textBaseline='bottom';
+  g.fillText('Canarias',bx,by-3);g.globalAlpha=1;
 }
+function newLayer(){var c=document.createElement('canvas');c.width=mapC.width;c.height=mapC.height;var g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);return [c,g];}
 
 function layout(){
-  var r=stage.getBoundingClientRect();
+  var r=mapbox.getBoundingClientRect();
   W=Math.max(200,Math.round(r.width));H=Math.max(160,Math.round(r.height));
   dpr=Math.min(2,window.devicePixelRatio||1);
-  canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
+  mapC.width=Math.round(W*dpr);mapC.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
   mobile=W<560;
-  smallFont='500 '+(mobile?9.6:11.2)+'px "Alegreya Sans", system-ui, sans-serif';
-  readFont='500 '+(mobile?11:13.4)+'px "Alegreya Sans", system-ui, sans-serif';
-  pad={l:mobile?9:16,r:mobile?9:18,t:mobile?9:16,b:mobile?12:20};
-
+  pad={l:mobile?8:16,r:mobile?8:18,t:mobile?26:34,b:mobile?10:20};
   var bw=fitB[2]-fitB[0],bh=fitB[3]-fitB[1];
   k=Math.min((W-pad.l-pad.r)/bw,(H-pad.t-pad.b)/bh);
   ox=pad.l+((W-pad.l-pad.r)-bw*k)/2;
   oy=pad.t+((H-pad.t-pad.b)-bh*k)*0.42;
-  scale=Math.min(1.5,Math.max(0.46,bw*k/960));
-  bigFont='600 '+(mobile?30:Math.round(46*Math.min(1.25,scale)))+'px "EB Garamond", Georgia, serif';
-
+  scale=Math.min(1.5,Math.max(mobile?0.36:0.48,bw*k/960));
+  sprites={};
   mainScr=mainRaw.map(function(rg){return rg.map(sx);});
-
-  /* Canary inset, bottom right over the Mediterranean, clear of the mainland */
   var cw=canB[2]-canB[0],ch=canB[3]-canB[1],kc=k*0.66,tries=0,ok=false;inset=null;
   var insetBot=H-pad.b-(mobile?2:6);
   while(!ok&&tries++<12){
@@ -361,264 +440,304 @@ function layout(){
   if(!inset)inset={x0:W-pad.r-cw*kc,y0:insetBot-ch*kc,x1:W-pad.r,y1:insetBot,k:kc};
   canScr=canRaw.map(function(rg){return rg.map(sxc);});
   provScr=provRaw.map(function(p){return p.rings.map(function(rg){return rg.map(p.can?sxc:sx);});});
-
-  /* every municipality on the plate */
-  for(i=0;i<NM;i++){
-    var pt=(mLon[i]<-10)?sxc(muRaw[i]):sx(muRaw[i]);
-    mx[i]=pt[0];my[i]=pt[1];
-    var u=clamp((mPop[i]-1.9)/3.1);
-    mr[i]=(1.55+5.4*Math.pow(u,1.35))*scale;
-  }
-  provScreen=PROV.map(function(p){var pt=(p.lon<-10)?sxc(raw(p.lon,p.lat)):sx(raw(p.lon,p.lat));return pt;});
-  madrid=sx(raw(-3.70,40.42));
-  M2=Math.max(W,H)*1.45;
-
-  /* the cartouche sits in the Atlantic corner, the only wide water on the plate */
-  keyAt=[pad.l+5,H-pad.b-(mobile?6:24)];
-  sparkAt=[W-pad.r-4,pad.t+(mobile?30:38)];
-
+  for(i=0;i<NM;i++){var pt=(mLon[i]<-10)?sxc(muRaw[i]):sx(muRaw[i]);mx[i]=pt[0];my[i]=pt[1];}
+  /* rejilla para el hover */
+  gridW=Math.ceil(W/CELL)+1;gridH=Math.ceil(H/CELL)+1;grid=new Array(gridW*gridH);
+  for(i=0;i<NM;i++){var gx=(mx[i]/CELL)|0,gy=(my[i]/CELL)|0;if(gx<0||gy<0||gx>=gridW||gy>=gridH)continue;
+    var c=gy*gridW+gx;(grid[c]||(grid[c]=[])).push(i);}
   if(!paperPat)paperPat=ctx.createPattern(makePaperTile(),'repeat');
-  paperLayer=document.createElement('canvas');paperLayer.width=canvas.width;paperLayer.height=canvas.height;
-  var pg=paperLayer.getContext('2d');pg.setTransform(dpr,0,0,dpr,0,0);
+  var L=newLayer();paperLayer=L[0];var pg=L[1];
   pg.fillStyle=paperPat;pg.fillRect(0,0,W,H);
   var vg=pg.createRadialGradient(W*0.44,H*0.36,Math.min(W,H)*0.10,W*0.5,H*0.5,Math.max(W,H)*0.86);
   vg.addColorStop(0,'rgba(255,252,242,0.55)');vg.addColorStop(1,'rgba(106,80,44,0.20)');
   pg.fillStyle=vg;pg.fillRect(0,0,W,H);
-
-  solidLayer=document.createElement('canvas');solidLayer.width=canvas.width;solidLayer.height=canvas.height;
-  var sg=solidLayer.getContext('2d');sg.setTransform(dpr,0,0,dpr,0,0);drawDots(sg,0);
-
-  splitLayer=document.createElement('canvas');splitLayer.width=canvas.width;splitLayer.height=canvas.height;
-  var xg=splitLayer.getContext('2d');xg.setTransform(dpr,0,0,dpr,0,0);drawDots(xg,1);
-
-  lineLayer=document.createElement('canvas');lineLayer.width=canvas.width;lineLayer.height=canvas.height;
-  var lg=lineLayer.getContext('2d');lg.setTransform(dpr,0,0,dpr,0,0);drawOutline(lg);
+  L=newLayer();lineLayer=L[0];drawOutline(L[1]);
+  L=newLayer();dotLayer=L[0];dotCtx=L[1];dotYear=-1;dotCtx.imageSmoothingEnabled=false;
+  /* la gráfica */
+  var cr=chartbox.getBoundingClientRect();CW=Math.max(100,Math.round(cr.width));CH=Math.max(60,Math.round(cr.height));
+  chC.width=Math.round(CW*dpr);chC.height=Math.round(CH*dpr);cctx.setTransform(dpr,0,0,dpr,0,0);
 }
 
-/* ---------- the plate's own furniture ---------- */
-/* es-ES leaves four-digit numbers ungrouped; on the plate they must all read alike */
+/* ---------- los puntos: tamaño = habitantes ese año, color = respecto a 1900 ---------- */
+function radiusOf(pop){var u=(Math.log10(pop+1)-1.8)/3.4;u=u<0?0:u>1?1:u;
+  var r=((mobile?0.62:1.0)+(mobile?4.6:5.6)*Math.pow(u,1.45))*scale,mn=mobile?0.55:0.9;return r<mn?mn:r;}
+/* sprites: un pequeño lienzo por clase de color y radio (paso 0,25 px), pintado una vez y
+   estampado 8.112 veces por fotograma; mucho más barato que rasterizar 8.112 arcos */
+var sprites={},RSTEP=0.25;
+function sprite(bk,ri){
+  var key=bk*1000+ri,sp=sprites[key];if(sp)return sp;
+  var r=ri*RSTEP,lw=mobile?0.8:Math.max(1,1.15*scale),sz=Math.ceil((r+lw+1.5)*2),c=document.createElement('canvas');
+  c.width=Math.ceil(sz*dpr);c.height=c.width;var g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+  var cx=sz/2,cy=sz/2;g.beginPath();g.arc(cx,cy,r,0,TAU);
+  if(bk<4){g.fillStyle=rgba(CAL,0.9);g.fill();g.lineWidth=lw;g.strokeStyle=LOSSCOL[bk];g.stroke();}
+  else if(bk===4){g.fillStyle=rgba(NEUTRAL,0.88);g.fill();}
+  else{g.fillStyle=rgba(GAINCOL[bk-5],0.92);g.fill();}
+  sp={c:c,sz:sz,h:sz/2};sprites[key]=sp;return sp;
+}
+var cntLoss=0,cntGain=0;
+function paintDots(y){
+  var g=dotCtx;g.clearRect(0,0,W,H);
+  var s=y>=Y1?K-2:segOf(y),f=y>=Y1?1:(y-YRS[s])/(YRS[s+1]-YRS[s]),nl=0,ng=0,ord=[[],[],[],[],[],[],[],[],[]];
+  for(var m=0;m<NM;m++){
+    var o=m*K,p0=POP[o],pa=POP[o+s],pb=POP[o+s+1],pop=pa+(pb-pa)*f;
+    mPop[m]=pop;var r=radiusOf(pop);mR[m]=r;var bk;
+    if(pop<p0){nl++;var lr=Math.log10((pop+0.5)/(p0+0.5));bk=lr<-0.6?0:lr<-0.3?1:lr<-0.1?2:3;}
+    else if(pop>p0){ng++;var lg=p0>0?Math.log10(pop/p0):9;bk=lg<0.1?5:lg<0.3?6:lg<0.6?7:8;}
+    else bk=4;
+    var x=mx[m],yy=my[m];if(x<-8||x>W+8||yy<-8||yy>H+8)continue;
+    ord[bk].push(m);
+  }
+  cntLoss=nl;cntGain=ng;
+  /* los anillos (pierden) debajo, la sanguina (ganan) encima */
+  for(var b=0;b<9;b++){var list=ord[b];
+    for(var j=0;j<list.length;j++){m=list[j];var sp=sprite(b,Math.round(mR[m]/RSTEP));
+      g.drawImage(sp.c,Math.round((mx[m]-sp.h)*dpr)/dpr,Math.round((my[m]-sp.h)*dpr)/dpr,sp.sz,sp.sz);}}
+  dotYear=y;
+}
+
+/* ---------- la gráfica: España en habitantes; con un municipio fijado, índice 1900 = 100 ---------- */
 function fmt(v){var s=String(Math.round(v)),o='',c=0;
-  for(var j=s.length-1;j>=0;j--){o=s.charAt(j)+o;if(++c%3===0&&j>0)o='.'+o;}
-  return o;}
-
-/* the cartouche: what the plate is counting, and how to read its two marks */
-function cartouche(alpha,count,keyAlpha){
-  if(alpha<=0)return;
-  var g=ctx,x=keyAt[0],yBot=keyAt[1];
-  var lh=(mobile?12.4:15.6), sw=(mobile?4.6:5.8), gap=(mobile?7:9);
-  var kyB=yBot, kyA=yBot-(mobile?13:16);
-  var c3=kyA-(mobile?14:18), c2=c3-lh, c1=c2-lh, num=c1-(mobile?15:20);
-  g.save();g.textAlign='left';
-  g.globalAlpha=alpha;
-  /* a cartouche of paper so the reading never fights the pigment underneath */
-  g.font=readFont;
-  var wTxt=Math.max(g.measureText('municipios con menos').width,
-                    g.measureText('de los 8.090 con serie').width);
-  g.font=smallFont;
-  wTxt=Math.max(wTxt,sw*2+gap+g.measureText('pierden gente  ·  '+fmt(META.nLoss)).width);
-  g.font=bigFont;wTxt=Math.max(wTxt,g.measureText(fmt(META.nLoss)).width);
-  var pTop=num-(mobile?26:38), pW=wTxt+(mobile?12:16), pH=(kyB+(mobile?8:9))-pTop;
-  g.globalAlpha=alpha*0.66;g.fillStyle=CAL;g.fillRect(x-(mobile?5:7),pTop,pW,pH);
-  g.globalAlpha=alpha*0.24;g.strokeStyle=rgba(SOMBRA,1);g.lineWidth=1;
-  g.strokeRect(x-(mobile?5:7)+.5,pTop+.5,pW-1,pH-1);
-  g.globalAlpha=alpha;
-  g.font=bigFont;g.fillStyle=CENIZA_OSC;g.textBaseline='alphabetic';
-  g.fillText(fmt(count),x,num);
-  var wN=g.measureText(fmt(count)).width;
-  g.font=readFont;g.fillStyle=mix(TINTA,MUTED,0.18);g.textBaseline='alphabetic';
-  g.fillText('municipios con menos',x+1,c1);
-  g.fillText('gente que en 1900,',x+1,c2);
-  g.fillStyle=MUTED;
-  g.fillText('de los 8.090 con serie',x+1,c3);
-  g.strokeStyle=rgba(CENIZA_OSC,0.55);g.lineWidth=1;
-  g.beginPath();g.moveTo(x,num+4.5);g.lineTo(x+Math.max(wN,84),num+4.5);g.stroke();
-  /* the key, right under it */
-  if(keyAlpha>0){
-    g.globalAlpha=alpha*keyAlpha;
-    g.textBaseline='middle';g.font=smallFont;
-    g.drawImage(HOLLOW[1],x,kyA-sw,sw*2,sw*2);
-    g.fillStyle=mix(TINTA,MUTED,0.15);g.fillText('pierden gente  ·  '+fmt(META.nLoss),x+sw*2+gap,kyA);
-    g.drawImage(EMBER[1],x,kyB-sw,sw*2,sw*2);
-    g.fillText('ganan gente  ·  '+fmt(META.nGain),x+sw*2+gap,kyB);
-  }
-  g.restore();g.globalAlpha=1;
-}
-
-/* the national series, painted small over the Gulf of Lion: the country grew while
-   seven of every ten of its municipalities shrank */
-function spark(alpha){
-  if(alpha<=0)return;
-  var g=ctx,w=Math.min(mobile?74:132,W*0.19),h=(mobile?26:40);
-  var x0=sparkAt[0]-w,y1=sparkAt[1]+h;
-  g.save();g.globalAlpha=alpha;
-  g.strokeStyle=rgba(SANG,0.85);g.lineWidth=(mobile?1.5:2.1);g.lineJoin='round';g.lineCap='round';
-  g.beginPath();
-  for(var j=0;j<NN;j++){
-    var u=j/(NN-1),xx=x0+w*u,yy=y1-h*(NAC[j]/nacMax);
-    if(j===0)g.moveTo(xx,yy);else g.lineTo(xx,yy);
-  }
-  g.stroke();
-  g.globalAlpha=alpha*0.18;g.lineWidth=(mobile?4:6);g.stroke();
-  g.globalAlpha=alpha;
-  g.strokeStyle=rgba(SOMBRA,0.45);g.lineWidth=1;
-  g.beginPath();g.moveTo(x0,y1+0.5);g.lineTo(x0+w,y1+0.5);g.stroke();
-  g.fillStyle=SANG_OSC;g.beginPath();g.arc(x0+w,y1-h*(NAC[NN-1]/nacMax),2.4,0,TAU);g.fill();
-  g.font=smallFont;g.fillStyle=MUTED;g.textAlign='left';g.textBaseline='bottom';
-  g.textAlign='right';g.fillText(mobile?'España, habitantes':'España, habitantes  ·  1900–2025',x0+w,y1-h-6);
+  for(var j=s.length-1;j>=0;j--){o=s.charAt(j)+o;if(++c%3===0&&j>0)o='.'+o;}return o;}
+function fmtM(v){return (v/1e6).toFixed(1).replace('.',',')+' M';}
+function niceStep(max,n){var raw=max/n,p=Math.pow(10,Math.floor(Math.log10(raw))),c=[1,2,2.5,5,10],best=p;
+  for(var j=0;j<c.length;j++){best=c[j]*p;if(best>=raw)break;}return best;}
+function drawChart(y){
+  var g=cctx;g.clearRect(0,0,CW,CH);
+  var sf=mobile?'500 12px':'500 12.5px', FONT=sf+' "Alegreya Sans", system-ui, sans-serif';
+  var padL=12,padR=mobile?12:16,padT=mobile?30:36,padB=mobile?18:20,x0=padL,x1=CW-padR,yb=CH-padB,yt=padT,ph=yb-yt;
+  function X(yr){return x0+(yr-Y0)/(Y1-Y0)*(x1-x0);}
+  var idxMode=pinned>=0&&POP[pinned*K]>0, vmax, gridStep, Yv;
+  if(idxMode){var mm=0;for(var kk=0;kk<K;kk++){var v=POP[pinned*K+kk]/POP[pinned*K]*100;if(v>mm)mm=v;}
+    vmax=Math.max(nacMax/NAC[0]*100,mm)*1.12;gridStep=niceStep(vmax,4);}
+  else{vmax=nacMax*1.12;gridStep=25e6;}
+  Yv=function(v){return yb-v/vmax*ph;};
+  /* rejilla y ejes */
+  g.font=FONT;g.textBaseline='top';g.textAlign='center';
+  g.strokeStyle=rgba(SOMBRA,0.22);g.lineWidth=1;
+  for(var yr=Y0;yr<=Y1;yr+=25){var xx=Math.round(X(yr))+0.5;g.beginPath();g.moveTo(xx,yb);g.lineTo(xx,yb+4);g.stroke();
+    g.fillStyle=MUTED;g.fillText(String(yr),Math.min(x1-14,Math.max(x0+14,xx)),yb+5);}
+  g.beginPath();g.moveTo(x0,yb+0.5);g.lineTo(x1,yb+0.5);g.strokeStyle=rgba(SOMBRA,0.5);g.stroke();
   g.textAlign='left';
-  g.textBaseline='top';
-  g.fillText('18,8 M',x0,y1+4);
-  g.textAlign='right';g.fillText('49,1 M',x0+w,y1+4);
-  g.restore();g.globalAlpha=1;
-}
-
-function canaryFrame(alpha){
-  if(alpha<=0)return;var g=ctx;
-  g.save();g.globalAlpha=alpha*0.6;g.strokeStyle=rgba(SOMBRA,1);g.lineWidth=1;
-  var bx=inset.x0-9,by=inset.y0-9;
-  g.beginPath();g.moveTo(bx,inset.y1+2);g.lineTo(bx,by);g.lineTo(inset.x1+2,by);g.stroke();
-  g.font=smallFont;g.fillStyle=MUTED;g.textAlign='left';g.textBaseline='bottom';
-  g.fillText('Canarias',bx,by-4);
-  g.restore();g.globalAlpha=1;
-}
-
-/* ---------- hover: a province lights up and reads its own count ---------- */
-var hoverP=-1,hoverXY=null;
-function highlight(){
-  if(hoverP<0)return;
-  var g=ctx,list=provMunis[hoverP],p=PROV[hoverP];
-  g.save();
-  g.globalAlpha=0.60;g.fillStyle=PAPEL;g.fillRect(0,0,W,H);g.globalAlpha=1;
-  for(var j=0;j<list.length;j++){
-    var m=list[j],r=mr[m],v=hash(m*1.37)*4|0;
-    if(mChg[m]<0){var rr=Math.max(3.0*scale,r*1.45);g.globalAlpha=0.98;g.drawImage(HOLLOW[v],mx[m]-rr,my[m]-rr,rr*2,rr*2);}
-    else{var re=r*1.62;g.globalAlpha=1;g.drawImage(EMBER[v],mx[m]-re,my[m]-re,re*2,re*2);}
+  for(var gv=gridStep;gv<vmax;gv+=gridStep){var gy=Math.round(Yv(gv))+0.5,above=gv/vmax<0.6;
+    g.beginPath();g.moveTo(x0,gy);g.lineTo(x1,gy);g.strokeStyle=(idxMode&&gv===100)?rgba(TINTA,0.45):rgba(SOMBRA,0.18);
+    if(idxMode&&gv===100)g.setLineDash([3,3]);g.stroke();g.setLineDash([]);
+    g.textBaseline=above?'bottom':'top';
+    g.fillStyle=MUTED;g.fillText(idxMode?(gv===100?'100 = 1900':String(gv)):fmtM(gv),x0+2,above?gy-2:gy+2);}
+  /* serie nacional: toda en fino, y hasta el año actual en fuerte */
+  function natV(j){return idxMode?NAC[j]/NAC[0]*100:NAC[j];}
+  g.lineJoin='round';g.lineCap='round';
+  g.beginPath();for(var j=0;j<NN;j++){var px=X(NACY[j]),py=Yv(natV(j));if(j===0)g.moveTo(px,py);else g.lineTo(px,py);}
+  g.strokeStyle=rgba(SANG,0.30);g.lineWidth=1.2;g.stroke();
+  var cx=X(y),cv=idxMode?nacAt(y)/NAC[0]*100:nacAt(y),cy=Yv(cv);
+  if(!idxMode){g.beginPath();g.moveTo(x0,yb);
+    for(j=0;j<NN&&NACY[j]<=y;j++)g.lineTo(X(NACY[j]),Yv(natV(j)));
+    g.lineTo(cx,cy);g.lineTo(cx,yb);g.closePath();g.fillStyle=rgba(SANG,0.10);g.fill();}
+  g.beginPath();for(j=0;j<NN&&NACY[j]<=y;j++){px=X(NACY[j]);py=Yv(natV(j));if(j===0)g.moveTo(px,py);else g.lineTo(px,py);}
+  g.lineTo(cx,cy);g.strokeStyle=SANG;g.lineWidth=mobile?1.8:2.2;g.stroke();
+  /* el municipio fijado, con su propio índice */
+  var mv=null;
+  if(idxMode){var o=pinned*K,b0=POP[o];
+    g.beginPath();for(kk=0;kk<K;kk++){px=X(YRS[kk]);py=Yv(POP[o+kk]/b0*100);if(kk===0)g.moveTo(px,py);else g.lineTo(px,py);}
+    g.strokeStyle=rgba(TEAL,0.30);g.lineWidth=1.2;g.stroke();
+    mv=popAt(pinned,y)/b0*100;
+    g.beginPath();for(kk=0;kk<K&&YRS[kk]<=y;kk++){px=X(YRS[kk]);py=Yv(POP[o+kk]/b0*100);if(kk===0)g.moveTo(px,py);else g.lineTo(px,py);}
+    g.lineTo(cx,Yv(mv));g.strokeStyle=TEAL;g.lineWidth=mobile?1.8:2.2;g.stroke();
+    for(kk=0;kk<K;kk++){g.beginPath();g.arc(X(YRS[kk]),Yv(POP[o+kk]/b0*100),1.8,0,TAU);g.fillStyle=TEAL;g.fill();}
   }
-  g.globalAlpha=1;
-  var pt=provScreen[hoverP], pct=Math.round(100*p.nl/p.nm);
-  var t1=p.n, t2=pct+' de cada 100 con menos gente que en 1900',
-      t3=fmt(p.p0)+' → '+fmt(p.p1)+' habitantes';
-  g.font='600 '+(mobile?12.5:15.5)+'px "EB Garamond", Georgia, serif';
-  var w1=g.measureText(t1).width;
-  g.font=smallFont;
-  var w=Math.max(w1,g.measureText(t2).width,g.measureText(t3).width)+16,h=(mobile?42:50);
-  var bx=Math.min(W-w-4,Math.max(4,pt[0]-w/2)),by=Math.min(H-h-4,Math.max(4,pt[1]-h-14));
-  g.globalAlpha=0.93;g.fillStyle=CAL;g.fillRect(bx,by,w,h);
-  g.globalAlpha=0.7;g.strokeStyle=rgba(SOMBRA,1);g.lineWidth=1;g.strokeRect(bx+.5,by+.5,w-1,h-1);
-  g.globalAlpha=1;g.textAlign='left';g.textBaseline='top';
-  g.font='600 '+(mobile?12.5:15.5)+'px "EB Garamond", Georgia, serif';
-  g.fillStyle=TINTA;g.fillText(t1,bx+8,by+5);
-  g.font=smallFont;g.fillStyle=CENIZA_OSC;g.fillText(t2,bx+8,by+(mobile?21:26));
-  g.fillStyle=MUTED;g.fillText(t3,bx+8,by+(mobile?30:38));
-  g.strokeStyle=rgba(SOMBRA,0.55);g.lineWidth=1;
-  g.beginPath();g.moveTo(pt[0],by+h);g.lineTo(pt[0],pt[1]-3);g.stroke();
-  g.fillStyle=rgba(SOMBRA,0.8);g.beginPath();g.arc(pt[0],pt[1],2,0,TAU);g.fill();
-  g.restore();
+  /* cursor */
+  g.beginPath();g.moveTo(Math.round(cx)+0.5,yt-6);g.lineTo(Math.round(cx)+0.5,yb);g.strokeStyle=rgba(TINTA,0.55);g.lineWidth=1;g.stroke();
+  g.beginPath();g.arc(cx,cy,3.2,0,TAU);g.fillStyle=SANG_OSC;g.fill();
+  if(mv!==null){g.beginPath();g.arc(cx,Yv(mv),3.2,0,TAU);g.fillStyle=TEAL;g.fill();}
+  var yi=Math.round(y),approx=idxMode?!isCensus(yi):(NACY.indexOf(yi)<0);
+  var lab=idxMode?(yi+' · España '+Math.round(cv)+' · '+NAMES[pinned]+' '+(approx?'≈ ':'')+Math.round(mv))
+                 :(yi+' · '+(approx?'≈ ':'')+fmtM(cv)+' hab.');
+  g.font=(mobile?'700 12px':'700 13px')+' "Alegreya Sans", system-ui, sans-serif';
+  var lw=g.measureText(lab).width+10,right=cx+8+lw>x1,lx=right?cx-8-lw:cx+8,ly=yt-8;
+  g.fillStyle=rgba(CAL,0.92);g.fillRect(lx,ly,lw,17);
+  g.strokeStyle=rgba(SOMBRA,0.5);g.strokeRect(lx+0.5,ly+0.5,lw-1,16);
+  g.fillStyle=TINTA;g.textAlign='left';g.textBaseline='middle';g.fillText(lab,lx+5,ly+8.5);
 }
+function setChartLabel(){
+  if(pinned>=0){
+    if(POP[pinned*K]>0)chartLabel.innerHTML=(mobile?'':'Población · ')+'índice 1900 = 100 · <b>España</b> y <em>'+esc(NAMES[pinned])+'</em>'+(mobile?'':' ('+esc(PROVN[pad2(mPrv[pinned])]||'')+') · 1900–'+Y1);
+    else chartLabel.innerHTML='Población de España · habitantes · 1900–'+Y1+' · '+esc(NAMES[pinned])+': sin habitantes en 1900, sin índice';
+  } else chartLabel.textContent='Población de España · habitantes · 1900–'+Y1;
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+function pad2(n){return n<10?'0'+n:String(n);}
 
-/* ---------- the three movements ---------- */
-var T={grain:190, dots0:260, dots1:2450, split0:2780, split1:5050,
-       line0:4750, line1:6200, furn:5400, end:7400};
-var PER=14000;
-
-function render(t){
+/* ---------- composición ---------- */
+var hover=-1,pinned=-1,tipAt=null;
+function ringAt(m,col,rr,lw){ctx.beginPath();ctx.arc(mx[m],my[m],rr,0,TAU);ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.stroke();}
+function compose(y,phase){
   ctx.clearRect(0,0,W,H);
-  ctx.globalAlpha=Math.min(1,t/T.grain);ctx.drawImage(paperLayer,0,0,W,H);ctx.globalAlpha=1;
-
-  /* --- one: the 8.090 terms are laid down, all of them still full --- */
-  if(t<T.split0){
-    var u=clamp((t-T.dots0)/(T.dots1-T.dots0)), f=0.5*u+0.5*easeOut(u);
-    var d=(W+H+120)*f;
-    /* the whole plate is faintly on the sheet from the first second, the way an
-       underdrawing waits for the brush: the paper is never empty */
-    ctx.globalAlpha=0.11*clamp((t-T.grain)/420);ctx.drawImage(solidLayer,0,0,W,H);ctx.globalAlpha=1;
+  ctx.drawImage(paperLayer,0,0,W,H);
+  if(phase&&phase.settle<1){
+    /* los puntos se posan: primero un dibujo subyacente, luego la pasada diagonal */
+    var u=phase.settle,f=0.5*u+0.5*easeOut(u),d=(W+H+120)*f;
+    ctx.globalAlpha=0.12*clamp(u*3);ctx.drawImage(dotLayer,0,0,W,H);ctx.globalAlpha=1;
     ctx.save();ctx.beginPath();ctx.moveTo(-60,-60);ctx.lineTo(-60+d,-60);ctx.lineTo(-60,-60+d);ctx.closePath();ctx.clip();
-    ctx.drawImage(solidLayer,0,0,W,H);ctx.restore();
-    if(u>0.02&&u<0.99){                    /* the wet edge of the pass */
-      ctx.save();ctx.globalAlpha=0.30;ctx.strokeStyle=rgba(SOMBRA,1);ctx.lineWidth=2.4*scale;
-      ctx.beginPath();ctx.moveTo(-60+d,-60);ctx.lineTo(-60,-60+d);ctx.stroke();ctx.restore();
-    }
+    ctx.drawImage(dotLayer,0,0,W,H);ctx.restore();
+    if(u>0.02&&u<0.99){ctx.save();ctx.globalAlpha=0.30;ctx.strokeStyle=SOMBRA;ctx.lineWidth=2.4*scale;
+      ctx.beginPath();ctx.moveTo(-60+d,-60);ctx.lineTo(-60,-60+d);ctx.stroke();ctx.restore();}
+    ctx.globalAlpha=clamp((u-0.45)/0.55);ctx.drawImage(lineLayer,0,0,W,H);ctx.globalAlpha=1;
     return;
   }
-
-  /* --- two: the split spreads out of the centre; the interior empties out --- */
-  var sp=clamp((t-T.split0)/(T.split1-T.split0)), R=easeOut(sp)*M2;
-  ctx.save();
-  var out=new Path2D();out.rect(0,0,W,H);out.arc(madrid[0],madrid[1],R,0,TAU);
-  ctx.clip(out,'evenodd');ctx.drawImage(solidLayer,0,0,W,H);ctx.restore();
-  ctx.save();ctx.beginPath();ctx.arc(madrid[0],madrid[1],R,0,TAU);ctx.clip();
-  ctx.drawImage(splitLayer,0,0,W,H);ctx.restore();
-  if(sp>0.01&&sp<0.995){
-    ctx.save();ctx.globalAlpha=0.22;ctx.strokeStyle=rgba(SANG,1);ctx.lineWidth=3.2*scale;
-    ctx.beginPath();ctx.arc(madrid[0],madrid[1],R,0,TAU);ctx.stroke();ctx.restore();
-  }
-
-  /* --- three: the dry pen closes the country over its own municipalities --- */
-  var lu=clamp((t-T.line0)/(T.line1-T.line0));
-  if(lu>0){
-    ctx.save();
-    if(lu<1){var dd=(W+H+120)*easeOut(lu);ctx.beginPath();
-      ctx.moveTo(W+60,H+60);ctx.lineTo(W+60-dd,H+60);ctx.lineTo(W+60,H+60-dd);ctx.closePath();ctx.clip();}
-    ctx.drawImage(lineLayer,0,0,W,H);ctx.restore();
-    canaryFrame(clamp((lu-0.6)/0.4));
-  }
-
-  var fu=clamp((t-T.furn)/800);
-  cartouche(clamp((t-T.split0-260)/700),
-            META.nLoss*Math.min(1,ease(clamp((t-T.split0-260)/(T.split1-T.split0-260)))), fu);
-  spark(fu);
-
-  if(hoverP>=0&&t>=T.end){highlight();return;}
-
-  /* the pulse keeps the plate alive: one province at a time reads itself */
-  if(t>=T.end&&!RM&&EMPTIEST.length){
-    var NE=EMPTIEST.length, ph=((t-T.end)%PER)/PER, slot=ph*NE;
-    var pj=EMPTIEST[Math.floor(slot)%NE], a=Math.min(1,Math.sin(Math.PI*(slot%1))*2.2);
-    var pt=provScreen[pj], pv=PROV[pj], lbl=pv.n+'  ·  '+Math.round(100*pv.nl/pv.nm)+' de cada 100';
-    ctx.save();ctx.globalAlpha=a;
-    ctx.strokeStyle=rgba(CENIZA_OSC,0.85);ctx.lineWidth=1.2;
-    ctx.beginPath();ctx.arc(pt[0],pt[1],9*scale,0,TAU);ctx.stroke();
-    ctx.font=smallFont;ctx.textAlign='center';ctx.textBaseline='bottom';
-    var wl=ctx.measureText(lbl).width, lx=Math.max(wl/2+4,Math.min(W-wl/2-4,pt[0]));
-    ctx.globalAlpha=a*0.82;ctx.fillStyle=CAL;ctx.fillRect(lx-wl/2-4,pt[1]-11*scale-13,wl+8,14);
-    ctx.globalAlpha=a;ctx.fillStyle=CENIZA_OSC;ctx.fillText(lbl,lx,pt[1]-11*scale);
-    ctx.restore();ctx.globalAlpha=1;
-  }
+  ctx.drawImage(dotLayer,0,0,W,H);
+  ctx.drawImage(lineLayer,0,0,W,H);
+  if(pinned>=0){ringAt(pinned,rgba(CAL,0.95),mR[pinned]+4.5,3);ringAt(pinned,TINTA,mR[pinned]+4.5,1.4);}
+  if(hover>=0&&hover!==pinned){ringAt(hover,rgba(CAL,0.9),mR[hover]+3.5,2.6);ringAt(hover,TINTA,mR[hover]+3.5,1.1);}
 }
 
-/* ---------- clock, skip, resize ---------- */
-var startTime=null,raf=null,hiddenAt=null,frames=0,fpsT0=0;
-window.__fps=0;
-function frame(now){raf=null;if(startTime===null)startTime=now;
-  frames++;if(!fpsT0)fpsT0=now;
-  if(now-fpsT0>=500){window.__fps=Math.round(frames*1000/(now-fpsT0));frames=0;fpsT0=now;}
-  render(now-startTime);if(!document.hidden)raf=requestAnimationFrame(frame);}
-function finish(){if(RM)return;var now=performance.now();if(startTime===null)startTime=now;if(now-startTime<T.end)startTime=now-T.end;}
-function start(){layout();if(RM){render(T.end);return;}raf=requestAnimationFrame(frame);}
-document.addEventListener('visibilitychange',function(){if(RM)return;
-  if(document.hidden){if(raf){cancelAnimationFrame(raf);raf=null;}hiddenAt=performance.now();}
-  else{if(hiddenAt!==null&&startTime!==null)startTime+=performance.now()-hiddenAt;hiddenAt=null;if(!raf)raf=requestAnimationFrame(frame);}});
-var rt=null;function onResize(){clearTimeout(rt);rt=setTimeout(function(){layout();if(RM)render(T.end);},90);}
+/* ---------- el reloj ---------- */
+var year=RM?Y1:Y0, playing=false, intro=!RM, t0=null, lastNow=null, raf=null, needs=true, shownYear=-1;
+var INTRO_SETTLE=2500, INTRO_RUN=5000, RUN_RATE=(Y1-Y0)/6.5;   /* reproducción manual: 6,5 s el siglo entero */
+window.__fps=0;var frames=0,fpsT0=0;
+function frame(now){
+  raf=null;
+  frames++;if(!fpsT0)fpsT0=now;if(now-fpsT0>=500){window.__fps=Math.round(frames*1000/(now-fpsT0));frames=0;fpsT0=now;}
+  if(lastNow===null)lastNow=now;var dt=Math.min(100,now-lastNow);lastNow=now;
+  var phase=null;
+  if(intro){
+    if(t0===null)t0=now;var t=now-t0;
+    if(t<INTRO_SETTLE){year=Y0;phase={settle:t/INTRO_SETTLE};}
+    else{year=Y0+(t-INTRO_SETTLE)/INTRO_RUN*(Y1-Y0);if(year>=Y1){year=Y1;intro=false;setPlaying(false);}}
+    needs=true;
+  }else if(playing){
+    year+=dt/1000*RUN_RATE;if(year>=Y1){year=Y1;setPlaying(false);}needs=true;
+  }
+  if(needs){
+    /* en reproducción los puntos se repintan cada medio año (≈ 38 Hz); cursor, gráfica y numerales, a cada fotograma */
+    if(dotYear!==year&&(!(intro||playing)||dotYear<0||year>=Y1||Math.abs(year-dotYear)>=0.5))paintDots(year);
+    compose(year,phase);
+    drawChart(year);
+    var yi=Math.min(Y1,Math.floor(year+1e-6));
+    if(yi!==shownYear){shownYear=yi;
+      yearOut.firstChild.nodeValue=String(yi);slider.value=yi;slider.setAttribute('aria-valuetext',String(yi));
+      mapYear.textContent=String(yi);
+      yearNote.textContent=isCensus(yi)?(yi>=2001?'padrón':'censo'):'entre censos';
+      kLoss.textContent=fmt(cntLoss);kGain.textContent=fmt(cntGain);}
+    if(tipAt!==null)placeTip();
+    needs=false;
+  }
+  if(intro||playing)raf=requestAnimationFrame(frame);
+}
+function tick(){needs=true;if(!raf)raf=requestAnimationFrame(frame);}
+function setPlaying(p){playing=p;playBtn.setAttribute('aria-pressed',p?'true':'false');playBtn.setAttribute('aria-label',p?'Pausar':'Reproducir');if(p){lastNow=null;tick();}}
+function stopIntro(){if(intro){intro=false;setPlaying(false);}}
+function setYear(y,keepPlaying){stopIntro();if(!keepPlaying)setPlaying(false);year=Math.max(Y0,Math.min(Y1,y));tick();}
+playBtn.addEventListener('click',function(){stopIntro();if(playing)setPlaying(false);else{if(year>=Y1)year=Y0;setPlaying(true);}});
+slider.addEventListener('input',function(){setYear(+slider.value);});
+document.addEventListener('keydown',function(e){
+  var tg=e.target,tag=tg&&tg.tagName;
+  if(e.key===' '){if(tag==='BUTTON'||tag==='A')return;e.preventDefault();playBtn.click();return;}
+  var st=e.shiftKey?10:1;
+  if(e.key==='ArrowRight'||e.key==='ArrowUp'){e.preventDefault();setYear(Math.floor(year)+st);}
+  else if(e.key==='ArrowLeft'||e.key==='ArrowDown'){e.preventDefault();setYear(Math.ceil(year)-st);}
+  else if(e.key==='Home'){e.preventDefault();setYear(Y0);}
+  else if(e.key==='End'){e.preventDefault();setYear(Y1);}
+  else if(e.key==='Escape'){if(intro){stopIntro();setYear(Y1);}else unpin();}
+});
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden){if(raf){cancelAnimationFrame(raf);raf=null;}}
+  else{lastNow=null;if(intro)t0=null,year=Y0;tick();}
+});
+var rt=null;function onResize(){clearTimeout(rt);rt=setTimeout(function(){layout();tick();},90);}
 window.addEventListener('resize',onResize);window.addEventListener('orientationchange',onResize);
-document.addEventListener('pointerdown',function(e){if(e.target.closest&&e.target.closest('a,button'))return;finish();});
-document.addEventListener('keydown',function(e){if(e.key==='Escape')finish();});
-window.addEventListener('wheel',finish,{passive:true});window.addEventListener('touchmove',finish,{passive:true});
 
-/* after the act: the nearest province lights up and reads itself */
-function pick(e){
-  var r=stage.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;
-  if(px<0||py<0||px>W||py>H){hoverP=-1;return;}
-  var best=-1,bd=1e18;
-  for(var j=0;j<NP;j++){var p=provScreen[j],dx=p[0]-px,dy=p[1]-py,dd=dx*dx+dy*dy;
-    if(dd<bd){bd=dd;best=j;}}
-  hoverP=(bd<Math.pow(Math.max(48,90*scale),2))?best:-1;
-  if(RM&&hoverP>=0)render(T.end);
+/* ---------- espacio: hover, fijar, arrastrar ---------- */
+function pick(px,py){
+  var gx=(px/CELL)|0,gy=(py/CELL)|0,best=-1,bd=1e9;
+  for(var yy=gy-1;yy<=gy+1;yy++)for(var xx=gx-1;xx<=gx+1;xx++){
+    if(xx<0||yy<0||xx>=gridW||yy>=gridH)continue;var cell=grid[yy*gridW+xx];if(!cell)continue;
+    for(var j=0;j<cell.length;j++){var m=cell[j],dx=mx[m]-px,dy=my[m]-py,dd=dx*dx+dy*dy,lim=Math.max(mR[m]+4,mobile?11:8);
+      if(dd<lim*lim&&dd<bd){bd=dd;best=m;}}}
+  return best;
 }
-stage.addEventListener('pointermove',pick);
-stage.addEventListener('pointerdown',pick);
-stage.addEventListener('pointerleave',function(){hoverP=-1;if(RM)render(T.end);});
+function tipHTML(m){
+  var yi=Math.min(Y1,Math.floor(year+1e-6)),p0=POP[m*K],pv=popAt(m,yi),cens=isCensus(yi),h;
+  h='<b>'+esc(NAMES[m])+'</b><span class="prov">'+esc(PROVN[pad2(mPrv[m])]||'')+'</span>';
+  if(cens)h+='<span class="v">'+yi+' <i>('+(yi>=2001?'padrón':'censo')+')</i>: '+fmt(pv)+' hab.</span>';
+  else{var cb=censusBounds(yi);h+='<span class="v">'+yi+': ≈ '+fmt(round3(pv))+' hab. <i>(entre '+cb[0]+' y '+cb[1]+')</i></span>';}
+  h+='<span class="v">1900: '+fmt(p0)+' hab.</span>';
+  if(p0>0&&yi>Y0){var ch=(pv/p0-1)*100,cls=pv<p0?'loss':pv>p0?'gain':'';
+    h+='<span class="d '+cls+'">'+(ch>0?'+':'')+(Math.abs(ch)>=100?Math.round(ch):ch.toFixed(0))+' % respecto a 1900</span>';}
+  else if(p0===0)h+='<span class="d gain">sin habitantes en 1900</span>';
+  if(m===pinned)h+='<a href="visor.html#cat=poblacion&amp;ind=pob&amp;year='+yi+'&amp;tab=trends&amp;sel='+pad5(mIne[m])+'">Ver su serie en el visor &#8594;</a>';
+  return h;
+}
+function pad5(n){var s=String(n);while(s.length<5)s='0'+s;return s;}
+/* un valor interpolado no merece más de tres cifras */
+function round3(v){if(v<1000)return Math.round(v);var p=Math.pow(10,Math.floor(Math.log10(v))-2);return Math.round(v/p)*p;}
+function showTip(m,anchorAtDot){tipAt=m;tip.hidden=false;tip.classList.toggle('pinned',m===pinned);tip.innerHTML=tipHTML(m);placeTip(anchorAtDot);}
+function placeTip(){
+  if(tipAt<0)return;var m=tipAt;tip.innerHTML=tipHTML(m);
+  var tw=tip.offsetWidth,th=tip.offsetHeight,x=mx[m]+mR[m]+12,y=my[m]-th*0.5;
+  if(x+tw>W-6)x=mx[m]-mR[m]-12-tw;if(x<6)x=6;
+  if(y<6)y=6;if(y+th>H-6)y=H-6-th;
+  tip.style.left=Math.round(x)+'px';tip.style.top=Math.round(y)+'px';
+}
+function hideTip(){tipAt=null;tip.hidden=true;}
+function unpin(){if(pinned<0)return;pinned=-1;setChartLabel();if(hover>=0)showTip(hover);else hideTip();tick();}
+function pin(m){pinned=m;setChartLabel();showTip(m,true);tick();}
+var drag=null;
+mapbox.addEventListener('pointerdown',function(e){
+  if(e.target.closest&&e.target.closest('a'))return;
+  var r=mapbox.getBoundingClientRect();
+  drag={x:e.clientX-r.left,y:e.clientY-r.top,year:year,moved:false,id:e.pointerId,touch:e.pointerType==='touch'};
+  stopIntro();setPlaying(false);
+  try{mapbox.setPointerCapture(e.pointerId);}catch(err){}
+});
+mapbox.addEventListener('pointermove',function(e){
+  var r=mapbox.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;
+  if(drag){
+    var dx=px-drag.x;
+    if(!drag.moved&&Math.abs(dx)>7)drag.moved=true;
+    if(drag.moved){year=Math.max(Y0,Math.min(Y1,drag.year+dx/W*(Y1-Y0)));hover=-1;if(pinned<0)hideTip();tick();}
+    return;
+  }
+  if(e.pointerType==='touch')return;
+  var m=pick(px,py);
+  if(m!==hover){hover=m;if(m>=0)showTip(m);else if(pinned>=0)showTip(pinned);else hideTip();tick();}
+});
+function endDrag(e){
+  if(!drag)return;var d=drag;drag=null;
+  try{mapbox.releasePointerCapture(d.id);}catch(err){}
+  if(d.moved){tick();return;}
+  var r=mapbox.getBoundingClientRect(),m=pick(e.clientX-r.left,e.clientY-r.top);
+  if(m>=0){if(m===pinned)unpin();else pin(m);}
+  else unpin();
+}
+mapbox.addEventListener('pointerup',endDrag);
+mapbox.addEventListener('pointercancel',function(){drag=null;});
+mapbox.addEventListener('pointerleave',function(){if(drag)return;hover=-1;if(pinned>=0)showTip(pinned);else hideTip();tick();});
+/* la gráfica: tocar o arrastrar fija el año */
+var cdrag=false;
+function chartYear(e){var r=chartbox.getBoundingClientRect(),px=e.clientX-r.left,x0=12,x1=CW-(mobile?12:16);
+  return Y0+Math.max(0,Math.min(1,(px-x0)/(x1-x0)))*(Y1-Y0);}
+chartbox.addEventListener('pointerdown',function(e){cdrag=true;try{chartbox.setPointerCapture(e.pointerId);}catch(err){}setYear(chartYear(e));});
+chartbox.addEventListener('pointermove',function(e){if(cdrag)setYear(chartYear(e));});
+chartbox.addEventListener('pointerup',function(){cdrag=false;});
+chartbox.addEventListener('pointercancel',function(){cdrag=false;});
+document.addEventListener('pointerdown',function(e){
+  if(e.target.closest&&e.target.closest('#mapbox,#chartbox,.tbar,a,button'))return;
+  if(intro){stopIntro();setYear(Y1);}
+},true);
+
+/* ---------- arranque ---------- */
+function start(){layout();setChartLabel();paintDots(year);if(RM){compose(year,null);drawChart(year);needs=true;tick();return;}raf=requestAnimationFrame(frame);}
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){onResize();});
 start();
+
+/* API de comprobación (Playwright) */
+window.__v6={n:NM,years:YRS,year:function(){return year;},setYear:function(y){setYear(y);},play:function(){stopIntro();year=Y0;setPlaying(true);},
+  pause:function(){setPlaying(false);},skipIntro:function(){stopIntro();setYear(Y1);},pin:function(i){pin(i);},unpin:unpin,
+  idx:function(ine){return ineIndex[ine];},xy:function(i){var r=mapbox.getBoundingClientRect();return [r.left+mx[i],r.top+my[i]];},
+  counts:function(){return [cntLoss,cntGain];},intro:function(){return intro;},playing:function(){return playing;},
+  bench:function(){var t=performance.now(),n=20;for(var q=0;q<n;q++)paintDots(Y0+(q/n)*(Y1-Y0));var a=(performance.now()-t)/n;
+    t=performance.now();for(q=0;q<n;q++)compose(year,null);var b=(performance.now()-t)/n;
+    t=performance.now();for(q=0;q<n;q++)drawChart(Y0+(q/n)*(Y1-Y0));var c=(performance.now()-t)/n;
+    return {dots:+a.toFixed(2),compose:+b.toFixed(2),chart:+c.toFixed(2)};}};
 })();
 </script>
 </body>
