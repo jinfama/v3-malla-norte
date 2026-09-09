@@ -34,7 +34,9 @@ index.html              ← Portada V7 «palimpsesto» (Canvas 2D, sin fetch; CT
 visor.html              ← La app (carga progresiva con barra)
 portada/                ← Kits de la portada (solo lectura, generados desde data/)
 ├── spain.js                    ← contorno y provincias
-├── spain-muni.js               ← kit V5: rutas (calzadas, ferrocarriles con año)
+├── spain-muni.js               ← kit V5 (rutas sin recortar: dejaba Portugal, Francia y Marruecos). YA NO SE CARGA
+├── spain-calzadas-v7.js        ← calzadas romanas recortadas a España, 3 decimales (2026-09-09)
+├── spain-ferro-v7.js           ← ferrocarriles con año recortados a España, formato B64 del V5 (2026-09-09)
 ├── spain-muni-v6*.js           ← kit V6: centroides, nombres, series de población
 └── spain-muni-v7.js            ← kit V7: altitud, cultivos 1900/2020, embalses por década
 css/styles.css          ← UI estilo Opportunity Atlas
@@ -53,7 +55,7 @@ build/                  ← Scripts Python (NO desplegar)
 ├── convert_calzadas.py
 ├── convert_ferrocarril.py
 ├── portada_kit_v6.py       ← kit V6 de la portada (centroides + series exactas)
-├── portada_kit_v7.py       ← kit V7 de la portada (altitud, cultivos, embalses)
+├── portada_kit_v7.py       ← kit V7 de la portada (altitud, cultivos, embalses; y las rutas recortadas a España)
 └── test_render.py          ← test headless con playwright
 ```
 
@@ -70,12 +72,26 @@ portada.** Los tokens de `:root` de `index.html` (papel `#F1E9D7`, cal
 `#FBF6E9`, tinta `#332A1E`, sanguina `#B4482A`/`#7C2C15`, teal de agua
 `#114855`) son los de `css/styles.css`; al pulsar «Entrar al visor» no se
 cambia de mundo. La portada vigente es la V7 «palimpsesto» (`index.html`,
-kits `portada/spain-muni-v6*.js`, `spain-muni-v7.js` y `spain-muni.js`,
-generados con `build/portada_kit_v6.py` y `build/portada_kit_v7.py`), heredera
+kits `portada/spain-muni-v6*.js`, `spain-muni-v7.js`, `spain-calzadas-v7.js` y
+`spain-ferro-v7.js`, generados con `build/portada_kit_v6.py` y
+`build/portada_kit_v7.py`), heredera
 de la V1/V5 aprobada
 (`07_temp/portadas_visores_2026-09/spain_municipal/V1_espana-que-se-vacia.html`)
 — papel crema con grano, pigmento sepia y sanguina, titulares en EB Garamond.
 (Antes seguía por error la portada de *Andalucía*; ya no.)
+
+Retoque 2026-09-09 (Juan: «salen las calzadas de Portugal»): las rutas de la
+portada ya no vienen del kit V5 `spain-muni.js` (recortaba a una ventana
+lon/lat que incluía Portugal entero, el Pirineo francés y la orilla africana:
+2.559 de 13.500 km de calzada caían fuera) sino de `spain-calzadas-v7.js` y
+`spain-ferro-v7.js`, recortados contra la España del propio visor: unión de
+`municipios.topojson` y `provincias.topojson` con los huecos rellenos
+(`espana()` en `build/portada_kit_v7.py`). Ojo: `provincias.topojson` trae 51
+huecos interiores (hasta 1.600 km², Alhama de Murcia–Totana) y muescas
+costeras (Nules, Gandia) que la capa municipal sí tiene; el recorte del
+interior (`build/convert_calzadas.py` → `data/calzadas_romanas.geojson`) se
+hizo contra esa unión cruda y perdió unos 170 km de calzada dentro de esos
+huecos. Pendiente de arreglar en `data/` (no se tocó en este retoque).
 
 Lo que se llevó al interior el 2026-09-08 (backups `*.20260908-v7.bak` en
 `C:/Work/scratch/checkpoint/visores_2026-09/web_spain_municipal_backup/`):

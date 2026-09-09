@@ -235,15 +235,16 @@ body.on .enter.d3{transition-delay:.15s}
 </main>
 
 <script src="portada/spain.js"></script>
-<script src="portada/spain-muni.js"></script>
 <script src="portada/spain-muni-v6.js"></script>
 <script src="portada/spain-muni-v6-pop1.js"></script>
 <script src="portada/spain-muni-v6-pop2.js"></script>
 <script src="portada/spain-muni-v7.js"></script>
+<script src="portada/spain-calzadas-v7.js"></script>
+<script src="portada/spain-ferro-v7.js"></script>
 <script>
 (function(){
 'use strict';
-var S=window.SPAIN, D=window.SPAIN_MUNI_V6, R5=window.SPAIN_MUNI, K7=window.SPAIN_MUNI_V7,
+var S=window.SPAIN, D=window.SPAIN_MUNI_V6, K7=window.SPAIN_MUNI_V7, C7=window.SPAIN_CALZADAS_V7, F7=window.SPAIN_FERRO_V7,
     PS=(window.SPAIN_MUNI_V6_POP1||'')+(window.SPAIN_MUNI_V6_POP2||'');
 var canvas=document.getElementById('c'), stage=document.getElementById('stage'),
     capas=document.getElementById('capas'), clockEl=document.getElementById('clock'), yrEl=document.getElementById('yr'),
@@ -253,7 +254,7 @@ var RM=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)
 requestAnimationFrame(function(){document.body.classList.add('on');});
 aboutBtn.addEventListener('click',function(){var open=aboutNote.hidden;aboutNote.hidden=!open;aboutBtn.setAttribute('aria-expanded',open?'true':'false');});
 document.addEventListener('pointerdown',function(e){if(!aboutNote.hidden&&!(e.target.closest&&e.target.closest('.about'))){aboutNote.hidden=true;aboutBtn.setAttribute('aria-expanded','false');}},true);
-if(!S||!D||!R5||!K7||!PS||!canvas.getContext) return;
+if(!S||!D||!K7||!C7||!F7||!PS||!canvas.getContext) return;
 var ctx=canvas.getContext('2d'), TAU=Math.PI*2;
 
 /* ---------- paleta: papel, tinta, sanguina, teal de agua, ocre de los cultivos ---------- */
@@ -315,12 +316,17 @@ var EMB=[];(function(){var s=K7.emb;for(var r=0;r+16<=s.length;r+=16){
 function embAt(e,y){if(y<=HY[0])return e.a[0];if(y>=HY[HK-1])return e.a[HK-1];
   var s=0;while(s<HK-2&&y>=HY[s+1])s++;var f=(y-HY[s])/(HY[s+1]-HY[s]);return e.a[s]+(e.a[s+1]-e.a[s])*f;}
 
-/* kit V5: las rutas (calzadas y tres ferrocarriles con su año de apertura) */
-var BX5=R5.box, BW5=BX5[2]-BX5[0], BH5=BX5[3]-BX5[1];
+/* kits de rutas V7 (retoque 2026-09-09, build/portada_kit_v7.py), recortados a la España del propio visor:
+   calzadas romanas (spain-calzadas-v7.js: [lon,lat,...] a 3 decimales) y tres ferrocarriles con su año de
+   apertura (spain-ferro-v7.js: el formato B64 del kit V5). El kit V5 spain-muni.js ya no se carga: sus rutas
+   solo estaban recortadas a una ventana lon/lat y dejaban dentro Portugal, el Pirineo francés y Marruecos. */
+var BX5=F7.box, BW5=BX5[2]-BX5[0], BH5=BX5[3]-BX5[1];
 function d2(s,o){return LUT[s.charCodeAt(o)]*64+LUT[s.charCodeAt(o+1)];}
 var LAYERS=[{id:'calzadas',col:SANG_OSC,w:1.15},{id:'iberico',col:TINTA,w:1.25},{id:'estrecho',col:SOMBRA,w:0.95},{id:'ave',col:SANG,w:1.9}];
 var LINES=[];
-LAYERS.forEach(function(L,li){var str=R5.rutas[L.id];if(!str)return;var recs=str.split('|');
+C7.calzadas.forEach(function(a,j){var n=a.length>>1;if(n<2)return;var pts=new Array(n);
+  for(var m=0;m<n;m++)pts[m]=[a[m*2],a[m*2+1]];LINES.push({L:0,y:0,g:pts,s:j});});
+LAYERS.forEach(function(L,li){if(!li)return;var str=F7.rutas[L.id];if(!str)return;var recs=str.split('|');
   for(var j=0;j<recs.length;j++){var r=recs[j];if(r.length<8)continue;var op=d2(r,0),yr=op?op+1700:0,n=((r.length-4)/4)|0,pts=new Array(n);
     for(var m=0;m<n;m++){var oo=4+m*4;pts[m]=[BX5[0]+d2(r,oo)/4095*BW5,BX5[1]+d2(r,oo+2)/4095*BH5];}
     LINES.push({L:li,y:yr,g:pts,s:j});}});
@@ -765,7 +771,9 @@ window.__v7={n:NM,year:function(){return year;},phase:function(){return phase;},
   skipIntro:function(){phase='hold';pt=0;year=Y1;hintEl.classList.add('on');tick();},
   idx:function(ine){return ineIndex[ine];},xy:function(i){var r=stage.getBoundingClientRect();return [r.left+mx[i],r.top+my[i]];},
   hover:function(){return hover;},lit:function(){return Object.keys(lit).filter(function(k){return lit[k];});},
-  emb:EMB.length,bench:function(){var t=performance.now(),n=20;for(var q=0;q<n;q++)paintDots(P0+(q/n)*(P1-P0));var a=(performance.now()-t)/n;
+  emb:EMB.length,nRoads:ROADS.length,nRail:RAIL.length,
+  proj:function(lon,lat){var r=stage.getBoundingClientRect(),p=sx(raw(lon,lat));return [r.left+p[0],r.top+p[1]];},
+  bench:function(){var t=performance.now(),n=20;for(var q=0;q<n;q++)paintDots(P0+(q/n)*(P1-P0));var a=(performance.now()-t)/n;
     t=performance.now();for(q=0;q<n;q++)compose(performance.now());var b=(performance.now()-t)/n;return {dots:+a.toFixed(2),compose:+b.toFixed(2)};}};
 })();
 </script>
